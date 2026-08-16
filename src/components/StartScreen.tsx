@@ -1,12 +1,11 @@
 import React from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
   Sparkles,
   ArrowRight,
   BookOpen,
   CheckCircle2,
   ShieldCheck,
-  Waves,
   Disc,
   Flame,
   Sun,
@@ -17,6 +16,8 @@ import {
   Package,
   AlertTriangle,
   Sliders,
+  Settings,
+  Waves,
 } from "lucide-react";
 import {
   CleaningMode,
@@ -24,18 +25,17 @@ import {
   WaferDiameterInch,
   WaferType,
   ProcessCategoryId,
+  SimulationSettings,
 } from "../types";
 import { PROCESS_CATEGORIES } from "../data/processes";
-import { validateBatchSize, getBatchSizeErrorMessage } from "../utils/validation";
-import { BatchSizeSelector } from "./BatchSizeSelector";
+import { validateBatchSize } from "../utils/validation";
 import { WaferDiameterSelector } from "./WaferDiameterSelector";
 import { WaferTypeSelector } from "./WaferTypeSelector";
 
 interface StartScreenProps {
   cleaningMode: CleaningMode;
-  onSelectCleaningMode: (mode: CleaningMode) => void;
   batchSize?: number;
-  onSelectBatchSize: (batchSize: number | undefined) => void;
+  simulationSettings?: SimulationSettings;
   wafer: WaferConfig;
   onSelectWaferDiameter: (diameterInch: WaferDiameterInch, diameterMm: number) => void;
   onSelectWaferType: (waferType: WaferType) => void;
@@ -45,13 +45,13 @@ interface StartScreenProps {
   onSelectStepId: (stepId: string) => void;
   onStart: () => void;
   onOpenFormula: () => void;
+  onOpenSettings: () => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({
   cleaningMode,
-  onSelectCleaningMode,
   batchSize = 50,
-  onSelectBatchSize,
+  simulationSettings,
   wafer,
   onSelectWaferDiameter,
   onSelectWaferType,
@@ -61,6 +61,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   onSelectStepId,
   onStart,
   onOpenFormula,
+  onOpenSettings,
 }) => {
   const currentCategory =
     PROCESS_CATEGORIES.find((c) => c.id === selectedCategoryId) || PROCESS_CATEGORIES[0];
@@ -72,10 +73,8 @@ export const StartScreen: React.FC<StartScreenProps> = ({
     null;
 
   const isBatchMode = cleaningMode === "batch";
-  const isBatchValid = !isBatchMode || validateBatchSize(batchSize);
+  const isBatchValid = !isBatchMode || validateBatchSize(batchSize).valid;
   const isStartDisabled = !isBatchValid;
-  const batchErrorMessage =
-    isBatchMode && !isBatchValid ? getBatchSizeErrorMessage(batchSize) : null;
 
   const getProcessIcon = (id: ProcessCategoryId, isSelected: boolean) => {
     const className = `h-5 w-5 ${isSelected ? "text-[#00C2FF]" : "text-[#64748B]"}`;
@@ -115,138 +114,82 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           <div className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-[#00C2FF]/12 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-[#071A2E]/5 blur-3xl pointer-events-none" />
 
-          {/* System Badge */}
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-[#00C2FF]/40 bg-[#00C2FF]/10 px-5 py-1.5 text-xs sm:text-sm font-bold text-[#071A2E] mb-5">
-            <Sparkles className="h-4 w-4 text-[#00C2FF]" />
-            <span>반도체 8대 공정 초순수(UPW) 품질 보존 최적화 시스템</span>
+          {/* System Badge & Settings Trigger */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-5">
+            <div className="inline-flex items-center gap-2.5 rounded-full border border-[#00C2FF]/40 bg-[#00C2FF]/10 px-5 py-1.5 text-xs sm:text-sm font-bold text-[#071A2E]">
+              <Sparkles className="h-4 w-4 text-[#00C2FF]" />
+              <span>반도체 8대 공정 초순수(UPW) 품질 보존 최적화 시스템</span>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              id="main-screen-settings-btn"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#CBD5E1] bg-white px-4 py-1.5 text-xs font-bold text-[#071A2E] hover:border-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors shadow-xs cursor-pointer"
+            >
+              <Settings className="h-3.5 w-3.5 text-[#00C2FF]" />
+              <span>⚙ 환경 설정</span>
+              <span className="rounded bg-slate-100 text-[10px] text-[#64748B] px-1.5 py-0.2">
+                {cleaningMode === "single" ? "매엽식" : `배치식 (${batchSize || 50}매)`}
+              </span>
+            </button>
           </div>
 
           <h1 className="text-3xl sm:5xl lg:text-6xl font-black tracking-tight text-[#071A2E] mb-2">
             PureFlow AI
           </h1>
 
-          <p className="text-base sm:text-lg font-semibold text-[#64748B] mb-8">
-            세정 방식 · 8대 공정 세정 단계 · 웨이퍼 직경 및 종류 기반 초순수 최적화 surrogate 모델
+          <p className="text-base sm:text-lg font-semibold text-[#64748B] mb-6">
+            8대 공정 세정 단계 · 웨이퍼 직경 및 종류 기반 초순수 최적화 surrogate 모델
           </p>
 
-          {/* Main Selection Workflow */}
-          <div className="max-w-4xl mx-auto space-y-7 text-left">
-            {/* Step ①: 세정 방식 (Cleaning Mode) */}
-            <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 sm:p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#071A2E] flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
-                    1
+          {/* Current Active Simulation Condition Summary Pill */}
+          <div className="max-w-xl mx-auto mb-8 flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs">
+            <div className="flex items-center gap-2 text-left">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#071A2E] text-[#00C2FF] shrink-0">
+                {cleaningMode === "single" ? (
+                  <Disc className="h-4 w-4" />
+                ) : (
+                  <Waves className="h-4 w-4" />
+                )}
+              </div>
+              <div>
+                <div className="font-bold text-[#071A2E] flex items-center gap-1.5">
+                  <span>현재 세정 조건:</span>
+                  <span className="text-[#00C2FF]">
+                    {cleaningMode === "single"
+                      ? "매엽식 (Single Wafer)"
+                      : `배치식 (Batch, ${batchSize || 50} wafers)`}
                   </span>
-                  <span>세정 방식 선택 (Cleaning Mode)</span>
-                </label>
-                <span className="text-[11px] font-semibold text-[#64748B]">
-                  {cleaningMode === "single" ? "매엽식 단일 웨이퍼 모델" : "배치식 침적 수조 모델"}
+                </div>
+                <span className="text-[11px] text-[#64748B]">
+                  {cleaningMode === "single"
+                    ? `온도 ${simulationSettings?.single.temperatureC ?? 20}℃ · 유량 ${simulationSettings?.single.flowRateLpm ?? 10} L/min · 시간 ${simulationSettings?.single.cleaningTimeMin ?? 10} min`
+                    : `온도 ${simulationSettings?.batch.temperatureC ?? 20}℃ · 공정시간 ${simulationSettings?.batch.processTimeMin ?? 10} min · 린스 ${simulationSettings?.batch.rinseTimeMin ?? 5} min`}
                 </span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Single Wafer */}
-                <button
-                  type="button"
-                  id="mode-single"
-                  onClick={() => onSelectCleaningMode("single")}
-                  className={`relative flex items-start gap-3.5 rounded-2xl p-4 sm:p-5 border-2 transition-all cursor-pointer text-left focus:outline-none ${
-                    cleaningMode === "single"
-                      ? "border-[#00C2FF] bg-[#00C2FF]/10 text-[#071A2E] shadow-xs ring-1 ring-[#00C2FF]"
-                      : "border-[#E2E8F0] bg-white text-[#64748B] hover:border-[#CBD5E1] hover:bg-slate-50"
-                  }`}
-                >
-                  <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 transition-colors ${
-                      cleaningMode === "single"
-                        ? "border-[#00C2FF] bg-white text-[#00C2FF]"
-                        : "border-[#CBD5E1] bg-[#F8FAFC] text-[#64748B]"
-                    }`}
-                  >
-                    <Disc className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-black text-[#071A2E]">매엽식</span>
-                      <span className="font-mono text-xs font-semibold text-[#64748B]">
-                        Single Wafer
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                      한 장의 웨이퍼를 개별 챔버에서 고속 회전 및 직접 노즐 린스 세정
-                    </p>
-                  </div>
-                  {cleaningMode === "single" && (
-                    <span className="absolute top-3.5 right-3.5 flex h-2.5 w-2.5 rounded-full bg-[#00C2FF]" />
-                  )}
-                </button>
-
-                {/* Batch */}
-                <button
-                  type="button"
-                  id="mode-batch"
-                  onClick={() => onSelectCleaningMode("batch")}
-                  className={`relative flex items-start gap-3.5 rounded-2xl p-4 sm:p-5 border-2 transition-all cursor-pointer text-left focus:outline-none ${
-                    cleaningMode === "batch"
-                      ? "border-[#00C2FF] bg-[#00C2FF]/10 text-[#071A2E] shadow-xs ring-1 ring-[#00C2FF]"
-                      : "border-[#E2E8F0] bg-white text-[#64748B] hover:border-[#CBD5E1] hover:bg-slate-50"
-                  }`}
-                >
-                  <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 transition-colors ${
-                      cleaningMode === "batch"
-                        ? "border-[#00C2FF] bg-white text-[#00C2FF]"
-                        : "border-[#CBD5E1] bg-[#F8FAFC] text-[#64748B]"
-                    }`}
-                  >
-                    <Waves className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-black text-[#071A2E]">배치식</span>
-                      <span className="font-mono text-xs font-semibold text-[#64748B]">
-                        Batch Immersion
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
-                      다수의 웨이퍼를 대용량 Bath 및 오버플로우 수조에서 동시 침적 세정
-                    </p>
-                  </div>
-                  {cleaningMode === "batch" && (
-                    <span className="absolute top-3.5 right-3.5 flex h-2.5 w-2.5 rounded-full bg-[#00C2FF]" />
-                  )}
-                </button>
-              </div>
-
-              {/* Batch Size Selector (Condition: Only shown when Batch mode is selected) */}
-              <AnimatePresence>
-                {isBatchMode && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="overflow-hidden pt-2"
-                  >
-                    <BatchSizeSelector
-                      value={batchSize}
-                      onChange={onSelectBatchSize}
-                      min={1}
-                      max={currentCategory.batchCapacity || 100}
-                      presets={[25, 50, 100]}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="text-xs font-bold text-[#00C2FF] hover:underline shrink-0 cursor-pointer flex items-center gap-1"
+            >
+              <span>조건 변경</span>
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
-            {/* Step ②: 반도체 8대 공정 선택 (Semiconductor 8 Major Processes Grid) */}
+          {/* Main Core Selections Workflow:
+              1. 8대 공정 선택
+              2. 웨이퍼 직경 선택 (2" ~ 12")
+              3. 웨이퍼 종류 선택 (연마 / 에피 / SOI)
+          */}
+          <div className="max-w-4xl mx-auto space-y-7 text-left">
+            {/* Step ①: 반도체 8대 공정 선택 (Semiconductor 8 Major Processes Grid) */}
             <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 sm:p-6">
               <div className="flex items-center justify-between mb-3.5">
                 <label className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#071A2E] flex items-center gap-2">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
-                    2
+                    1
                   </span>
                   <span>반도체 8대 공정 선택 (SEMICONDUCTOR 8 MAJOR PROCESSES)</span>
                 </label>
@@ -475,13 +418,29 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               </div>
             </div>
 
-            {/* Step ③: 웨이퍼 직경 선택 (Wafer Diameter Selector: 2" ~ 12") */}
+            {/* Step ②: 웨이퍼 직경 선택 (Wafer Diameter Selector: 2" ~ 12") */}
             <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 sm:p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
+                  2
+                </span>
+                <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#071A2E]">
+                  웨이퍼 직경 선택 (Wafer Diameter)
+                </span>
+              </div>
               <WaferDiameterSelector value={wafer.diameterInch} onChange={onSelectWaferDiameter} />
             </div>
 
-            {/* Step ④: 웨이퍼 종류 선택 (Wafer Type Selector: Polished, Epitaxial, SOI) */}
+            {/* Step ③: 웨이퍼 종류 선택 (Wafer Type Selector: Polished, Epitaxial, SOI) */}
             <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 sm:p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
+                  3
+                </span>
+                <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#071A2E]">
+                  웨이퍼 종류 선택 (Wafer Type)
+                </span>
+              </div>
               <WaferTypeSelector value={wafer.waferType} onChange={onSelectWaferType} />
             </div>
           </div>
@@ -526,8 +485,8 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-center text-xs font-bold text-rose-700">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
                 <span>
-                  {batchErrorMessage ||
-                    "유효한 1회 처리 웨이퍼 수(1~100매 정수)를 입력해야 AI 최적화를 시작할 수 있습니다."}
+                  ⚙ 환경 설정에서 유효한 1회 처리 웨이퍼 수(1~100매 정수)를 설정해야 AI 최적화를
+                  시작할 수 있습니다.
                 </span>
               </div>
             )}

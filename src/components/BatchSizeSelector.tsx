@@ -19,10 +19,10 @@ export const BatchSizeSelector: React.FC<BatchSizeSelectorProps> = ({
   presets = [25, 50, 100],
   disabled = false,
 }) => {
-  const isPreset = value !== undefined && validateBatchSize(value) && presets.includes(value);
+  const isPreset = value !== undefined && validateBatchSize(value).valid && presets.includes(value);
   const [isCustomMode, setIsCustomMode] = useState<boolean>(!isPreset && value !== undefined);
   const [customInputStr, setCustomInputStr] = useState<string>(
-    value !== undefined && validateBatchSize(value)
+    value !== undefined && validateBatchSize(value).valid
       ? String(value)
       : value !== undefined
         ? String(value)
@@ -35,7 +35,7 @@ export const BatchSizeSelector: React.FC<BatchSizeSelectorProps> = ({
   // Sync if external value changes to a preset
   useEffect(() => {
     if (value !== undefined) {
-      if (validateBatchSize(value) && presets.includes(value)) {
+      if (validateBatchSize(value).valid && presets.includes(value)) {
         if (!isCustomMode) {
           setCustomInputStr(String(value));
           setErrorMessage(null);
@@ -51,7 +51,7 @@ export const BatchSizeSelector: React.FC<BatchSizeSelectorProps> = ({
   }, [value, presets, isCustomMode]);
 
   const handleSelectPreset = (preset: number) => {
-    if (!validateBatchSize(preset)) return;
+    if (!validateBatchSize(preset).valid) return;
     setIsCustomMode(false);
     setErrorMessage(null);
     setCustomInputStr(String(preset));
@@ -70,10 +70,9 @@ export const BatchSizeSelector: React.FC<BatchSizeSelectorProps> = ({
   };
 
   const validateAndPropagate = (strVal: string) => {
-    const isValid = validateBatchSize(strVal);
-    if (!isValid) {
-      const err = getBatchSizeErrorMessage(strVal);
-      setErrorMessage(err || "1회 처리 웨이퍼 수는 1 ~ 100 사이의 정수여야 합니다.");
+    const validation = validateBatchSize(strVal);
+    if (!validation.valid) {
+      setErrorMessage(validation.message || "1회 처리 웨이퍼 수는 1 ~ 100 사이의 정수여야 합니다.");
       onChange(undefined);
       return;
     }

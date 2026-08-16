@@ -1,15 +1,107 @@
 /**
- * PureFlow AI Unified Batch Size Validation Utility
+ * PureFlow AI Unified Validation Utilities & Simulation Ranges
  *
- * MVP Constraint:
- * 1 <= batchSize <= 100 (Integers only)
- *
- * Allowed:
- * 1 ~ 100
- *
- * Blocked:
- * 0, negative numbers, >= 101, floats/decimals, empty values, NaN, Infinity, strings/non-numbers
+ * MVP Simulation Range Definitions & Numeric Validation Guards
  */
+
+export interface ValidationResult {
+  valid: boolean;
+  message: string;
+}
+
+export type BatchValidationResult = ValidationResult;
+
+/**
+ * MVP Simulation Ranges (Single Wafer & Batch)
+ * Clearly designated as MVP Simulation Ranges (not manufacturer OEM standard specifications)
+ */
+export const MVP_SIMULATION_RANGES = {
+  single: {
+    temperatureC: { min: 10, max: 60, unit: "℃", label: "세정수 온도" },
+    flowRateLpm: { min: 1, max: 20, unit: "L/min", label: "UPW 유량" },
+    cleaningTimeMin: { min: 1, max: 30, unit: "min", label: "세정 시간" },
+    rinseTimeMin: { min: 1, max: 20, unit: "min", label: "린스 시간" },
+    spinRpm: { min: 100, max: 3000, unit: "rpm", label: "회전 속도" },
+    rinseCycles: { min: 1, max: 5, unit: "회", label: "린스 횟수" },
+  },
+  batch: {
+    temperatureC: { min: 10, max: 60, unit: "℃", label: "세정수 온도" },
+    batchSize: { min: 1, max: 100, unit: "wafers", label: "1회 처리 웨이퍼 수" },
+    processTimeMin: { min: 1, max: 60, unit: "min", label: "공정 시간" },
+    rinseTimeMin: { min: 1, max: 30, unit: "min", label: "린스 시간" },
+    rinseCycles: { min: 1, max: 5, unit: "회", label: "린스 횟수" },
+  },
+} as const;
+
+/**
+ * Generic numeric setting validator
+ */
+export function validateNumericSetting(
+  value: unknown,
+  min: number,
+  max: number,
+  label = "설정값",
+  unit = "",
+): ValidationResult {
+  if (value === null || value === undefined) {
+    return {
+      valid: false,
+      message: `${label}을(를) 입력해주세요.`,
+    };
+  }
+
+  let numValue: number;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      return {
+        valid: false,
+        message: `${label}을(를) 입력해주세요.`,
+      };
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      return {
+        valid: false,
+        message: `${label}은(는) 유효한 숫자여야 합니다.`,
+      };
+    }
+    numValue = parsed;
+  } else if (typeof value === "number") {
+    if (!Number.isFinite(value) || Number.isNaN(value)) {
+      return {
+        valid: false,
+        message: `${label}은(는) 유효한 숫자여야 합니다.`,
+      };
+    }
+    numValue = value;
+  } else {
+    return {
+      valid: false,
+      message: `${label}은(는) 유효한 숫자여야 합니다.`,
+    };
+  }
+
+  if (numValue < min) {
+    return {
+      valid: false,
+      message: `⚠ 최소값 ${min}${unit ? ` ${unit}` : ""} 이상이어야 합니다.`,
+    };
+  }
+
+  if (numValue > max) {
+    return {
+      valid: false,
+      message: `⚠ 최대값 ${max}${unit ? ` ${unit}` : ""}을 초과했습니다.`,
+    };
+  }
+
+  return {
+    valid: true,
+    message: "",
+  };
+}
 
 /**
  * Unified batch size validator
@@ -21,9 +113,12 @@
  * - min: 1
  * - max: 100
  */
-export function validateBatchSize(value: unknown): boolean {
+export function validateBatchSize(value: unknown): BatchValidationResult {
   if (value === null || value === undefined) {
-    return false;
+    return {
+      valid: false,
+      message: "1회 처리 웨이퍼 수를 선택해주세요.",
+    };
   }
 
   // Handle string input (e.g. from UI input fields)
@@ -31,92 +126,107 @@ export function validateBatchSize(value: unknown): boolean {
     const trimmed = value.trim();
     // Guard against Number("") converting to 0
     if (trimmed === "") {
-      return false;
+      return {
+        valid: false,
+        message: "1회 처리 웨이퍼 수를 선택해주세요.",
+      };
     }
-    // Must be positive integer digits only (rejects "10.5", "-1", "1e2", "abc", etc.)
+    if (trimmed.includes(".")) {
+      return {
+        valid: false,
+        message: "배치 처리 웨이퍼 수는 정수만 입력할 수 있습니다.",
+      };
+    }
+    if (trimmed.startsWith("-") || Number(trimmed) < 0) {
+      return {
+        valid: false,
+        message: "⚠ 최소값 1 wafers 이상이어야 합니다.",
+      };
+    }
     if (!/^\d+$/.test(trimmed)) {
-      return false;
+      return {
+        valid: false,
+        message: "배치 처리 웨이퍼 수는 숫자여야 합니다.",
+      };
     }
     const parsed = Number(trimmed);
-    return (
-      typeof parsed === "number" &&
-      !Number.isNaN(parsed) &&
-      Number.isFinite(parsed) &&
-      Number.isInteger(parsed) &&
-      parsed >= 1 &&
-      parsed <= 100
-    );
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      return {
+        valid: false,
+        message: "배치 처리 웨이퍼 수는 숫자여야 합니다.",
+      };
+    }
+    if (parsed < 1) {
+      return {
+        valid: false,
+        message: "⚠ 최소값 1 wafers 이상이어야 합니다.",
+      };
+    }
+    if (parsed > 100) {
+      return {
+        valid: false,
+        message: "⚠ 최대값 100 wafers를 초과했습니다.",
+      };
+    }
+    return {
+      valid: true,
+      message: "",
+    };
   }
 
   // Handle number input
-  if (typeof value === "number") {
-    return (
-      !Number.isNaN(value) &&
-      Number.isFinite(value) &&
-      Number.isInteger(value) &&
-      value >= 1 &&
-      value <= 100
-    );
+  if (typeof value !== "number" || !Number.isFinite(value) || Number.isNaN(value)) {
+    return {
+      valid: false,
+      message: "배치 처리 웨이퍼 수는 숫자여야 합니다.",
+    };
   }
 
-  return false;
+  if (!Number.isInteger(value)) {
+    return {
+      valid: false,
+      message: "배치 처리 웨이퍼 수는 정수만 입력할 수 있습니다.",
+    };
+  }
+
+  if (value < 1) {
+    return {
+      valid: false,
+      message: "⚠ 최소값 1 wafers 이상이어야 합니다.",
+    };
+  }
+
+  if (value > 100) {
+    return {
+      valid: false,
+      message: "⚠ 최대값 100 wafers를 초과했습니다.",
+    };
+  }
+
+  return {
+    valid: true,
+    message: "",
+  };
 }
 
 /**
- * Helper to get user-friendly error message for invalid batch sizes
+ * Helper to get user-friendly error message or null if valid
  */
 export function getBatchSizeErrorMessage(value: unknown): string | null {
-  if (value === null || value === undefined) {
-    return "1회 처리 웨이퍼 수를 입력해주세요 (1 ~ 100매).";
-  }
+  const result = validateBatchSize(value);
+  return result.valid ? null : result.message;
+}
 
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed === "") {
-      return "1회 처리 웨이퍼 수를 입력해주세요 (1 ~ 100매).";
-    }
-    if (trimmed.includes(".")) {
-      return "웨이퍼 수량은 소수점 없는 정수만 입력 가능합니다.";
-    }
-    if (trimmed.startsWith("-") || Number(trimmed) < 0) {
-      return "배치 크기는 음수가 될 수 없습니다. (1 ~ 100매)";
-    }
-    if (!/^\d+$/.test(trimmed)) {
-      return "유효한 정수 숫자를 입력해주세요 (1 ~ 100매).";
-    }
-    const num = Number(trimmed);
-    if (num === 0) {
-      return "배치 크기는 0이 될 수 없습니다. (최소 1매 이상)";
-    }
-    if (num < 1) {
-      return "배치 크기는 최소 1매 이상이어야 합니다.";
-    }
-    if (num > 100) {
-      return "배치 크기는 최대 100매 이하이어야 합니다. (100매 초과 불가)";
-    }
+/**
+ * Safe Batch Size parser for inputs (guards against Number("") === 0)
+ */
+export function parseBatchSize(value: string): number | undefined {
+  if (!value || value.trim() === "") {
+    return undefined;
   }
-
-  if (typeof value === "number") {
-    if (Number.isNaN(value) || !Number.isFinite(value)) {
-      return "유효한 숫자를 입력해주세요.";
-    }
-    if (!Number.isInteger(value)) {
-      return "웨이퍼 수량은 소수점 없는 정수만 허용됩니다.";
-    }
-    if (value === 0) {
-      return "배치 크기는 0이 될 수 없습니다. (최소 1매 이상)";
-    }
-    if (value < 1) {
-      return "배치 크기는 최소 1매 이상이어야 합니다.";
-    }
-    if (value > 100) {
-      return "배치 크기는 최대 100매 이하이어야 합니다. (100매 초과 불가)";
-    }
+  const parsed = Number(value.trim());
+  if (!Number.isFinite(parsed)) {
+    return undefined;
   }
-
-  if (!validateBatchSize(value)) {
-    return "1회 처리 웨이퍼 수는 1 ~ 100 사이의 정수여야 합니다.";
-  }
-
-  return null;
+  return parsed;
 }

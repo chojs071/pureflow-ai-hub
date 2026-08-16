@@ -47,20 +47,43 @@ export const FinalDashboard: React.FC<FinalDashboardProps> = ({
         : "SOI 웨이퍼"
   }`;
 
+  const formatWaferType = (type: string) => {
+    switch (type) {
+      case "polished":
+        return "Polished";
+      case "epitaxial":
+        return "Epi";
+      case "soi":
+        return "SOI";
+      default:
+        return type;
+    }
+  };
+
+  const breadcrumbCondition = isSingle
+    ? `PureFlow AI / Single Wafer / ${wafer.diameterInch}" / ${formatWaferType(wafer.waferType)} / 8대 공정 종합`
+    : `PureFlow AI / Batch / ${batchSize || 50} wafers / ${wafer.diameterInch}" / ${formatWaferType(wafer.waferType)} / 8대 공정 종합`;
+
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 space-y-6">
       {/* Top Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-xs">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-black text-[#071A2E] text-base sm:text-lg">
-            반도체 8대 공정 {waferLabel}{" "}
-            {isSingle ? "매엽식 (Single Wafer)" : `배치식 (Batch, ${batchSize || 50}매)`} 최적화
-            리포트
-          </span>
-          <span className="inline-flex items-center gap-1 font-bold text-[#166534] bg-[#22C55E]/10 border border-[#22C55E]/30 px-2.5 py-0.5 rounded-full text-xs">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>품질 기준 100% 충족</span>
-          </span>
+        <div className="flex flex-col gap-1.5">
+          <div className="inline-flex items-center gap-1.5 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-1 text-xs font-mono font-bold text-[#071A2E] w-fit">
+            <span className="text-[#00C2FF]">●</span>
+            <span>{breadcrumbCondition}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-black text-[#071A2E] text-base sm:text-lg">
+              반도체 8대 공정 {waferLabel}{" "}
+              {isSingle ? "매엽식 (Single Wafer)" : `배치식 (Batch, ${batchSize || 50}매)`} 최적화
+              리포트
+            </span>
+            <span className="inline-flex items-center gap-1 font-bold text-[#166534] bg-[#22C55E]/10 border border-[#22C55E]/30 px-2.5 py-0.5 rounded-full text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>품질 기준 100% 충족</span>
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

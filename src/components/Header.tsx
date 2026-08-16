@@ -1,5 +1,5 @@
 import React from "react";
-import { Cpu, RotateCcw, BookOpen, Disc, Waves } from "lucide-react";
+import { Cpu, RotateCcw, BookOpen, Disc, Waves, Settings } from "lucide-react";
 import { WaferConfig, CleaningMode } from "../types";
 
 interface HeaderProps {
@@ -8,6 +8,7 @@ interface HeaderProps {
   batchSize?: number;
   onReset: () => void;
   onOpenFormula: () => void;
+  onOpenSettings?: () => void;
   currentStep?: number;
   totalSteps?: number;
 }
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   batchSize,
   onReset,
   onOpenFormula,
+  onOpenSettings,
   currentStep,
   totalSteps,
 }) => {
@@ -95,6 +97,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              id="header-settings-btn"
+              className="flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3.5 py-2 text-xs font-bold text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#00C2FF] cursor-pointer"
+              title="세정 시뮬레이션 환경 변수 설정"
+            >
+              <Settings className="h-4 w-4 text-[#00C2FF]" />
+              <span className="hidden sm:inline">환경 설정</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenFormula}
             className="flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3.5 py-2 text-xs font-bold text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#00C2FF] cursor-pointer"

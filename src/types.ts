@@ -98,6 +98,50 @@ export interface ParameterMetadata {
   description: string;
 }
 
+export interface SingleWaferSettings {
+  temperatureC: number; // e.g. 20 (℃)
+  flowRateLpm: number; // e.g. 10 (L/min)
+  cleaningTimeMin: number; // e.g. 10 (min)
+  rinseTimeMin: number; // e.g. 5 (min)
+  spinRpm: number; // e.g. 1000 (rpm)
+  rinseCycles: number; // e.g. 2 (회)
+}
+
+export interface BatchSettings {
+  temperatureC: number; // e.g. 20 (℃)
+  batchSize: number; // e.g. 50 (wafers, 1~100)
+  processTimeMin: number; // e.g. 10 (min)
+  rinseTimeMin: number; // e.g. 5 (min)
+  rinseCycles: number; // e.g. 2 (회)
+}
+
+export interface SimulationSettings {
+  single: SingleWaferSettings;
+  batch: BatchSettings;
+}
+
+export const DEFAULT_SINGLE_SETTINGS: SingleWaferSettings = {
+  temperatureC: 20,
+  flowRateLpm: 10,
+  cleaningTimeMin: 10,
+  rinseTimeMin: 5,
+  spinRpm: 1000,
+  rinseCycles: 2,
+};
+
+export const DEFAULT_BATCH_SETTINGS: BatchSettings = {
+  temperatureC: 20,
+  batchSize: 50,
+  processTimeMin: 10,
+  rinseTimeMin: 5,
+  rinseCycles: 2,
+};
+
+export const DEFAULT_SIMULATION_SETTINGS: SimulationSettings = {
+  single: DEFAULT_SINGLE_SETTINGS,
+  batch: DEFAULT_BATCH_SETTINGS,
+};
+
 export interface SingleWaferRecipe {
   cleaningTimeMin: number; // minutes
   rinseTimeMin: number; // minutes

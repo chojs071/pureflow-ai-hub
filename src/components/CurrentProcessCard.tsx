@@ -46,6 +46,23 @@ export const CurrentProcessCard: React.FC<CurrentProcessCardProps> = ({ result }
   const isSingle = cleaningMode === "single";
   const waferLabel = `${wafer.diameterInch}" (${wafer.diameterMm}mm) · ${wafer.waferType.toUpperCase()}`;
 
+  const formatWaferType = (type: string) => {
+    switch (type) {
+      case "polished":
+        return "Polished";
+      case "epitaxial":
+        return "Epi";
+      case "soi":
+        return "SOI";
+      default:
+        return type;
+    }
+  };
+
+  const breadcrumbCondition = isSingle
+    ? `PureFlow AI / Single Wafer / ${wafer.diameterInch}" / ${formatWaferType(wafer.waferType)} / ${process.categoryName}`
+    : `PureFlow AI / Batch / ${result.batchSize || 50} wafers / ${wafer.diameterInch}" / ${formatWaferType(wafer.waferType)} / ${process.categoryName}`;
+
   // EDS Special Handling
   if (!process.optimizationEnabled) {
     return (
@@ -117,6 +134,12 @@ export const CurrentProcessCard: React.FC<CurrentProcessCardProps> = ({ result }
     <div className="rounded-3xl border border-[#E2E8F0] bg-white p-6 sm:p-8 shadow-sm space-y-6">
       {/* Header */}
       <div>
+        {/* Conditions Breadcrumb Banner */}
+        <div className="inline-flex items-center gap-1.5 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-1 text-xs font-mono font-bold text-[#071A2E] mb-3">
+          <span className="text-[#00C2FF]">●</span>
+          <span>{breadcrumbCondition}</span>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-[#071A2E] px-3 py-1 text-xs font-bold text-[#00C2FF] flex items-center gap-1.5">
@@ -133,12 +156,12 @@ export const CurrentProcessCard: React.FC<CurrentProcessCardProps> = ({ result }
               ) : (
                 <>
                   <Waves className="h-3.5 w-3.5 text-[#00C2FF]" />
-                  <span>배치식 (Batch Immersion)</span>
+                  <span>배치식 ({result.batchSize || 50}매)</span>
                 </>
               )}
             </span>
             <span className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1 text-xs font-mono font-bold text-[#64748B]">
-              {waferLabel}
+              {wafer.diameterInch}&quot; ({wafer.diameterMm}mm) · {formatWaferType(wafer.waferType)}
             </span>
           </div>
 

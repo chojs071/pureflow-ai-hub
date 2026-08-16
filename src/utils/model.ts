@@ -71,10 +71,9 @@ export function calculateBatchResidual(
   recipe: BatchRecipe,
   params: BatchModelParameters,
 ): number {
-  if (!validateBatchSize(recipe.batchSize)) {
-    throw new Error(
-      `[PureFlow Validation Error] Invalid Batch Size (${recipe.batchSize}). Batch Size must be an integer between 1 and 100.`,
-    );
+  const validation = validateBatchSize(recipe.batchSize);
+  if (!validation.valid) {
+    throw new Error(`[PureFlow Validation Error] ${validation.message || "Invalid Batch Size"}`);
   }
 
   const {
@@ -113,10 +112,9 @@ export function calculateBatchUPW(recipe: BatchRecipe): {
   totalBatchUPW: number;
   perWaferUPW: number;
 } {
-  if (!validateBatchSize(recipe.batchSize)) {
-    throw new Error(
-      `[PureFlow Validation Error] Invalid Batch Size (${recipe.batchSize}). UPW calculation is forbidden for Batch Size outside 1-100 or non-integers.`,
-    );
+  const validation = validateBatchSize(recipe.batchSize);
+  if (!validation.valid) {
+    throw new Error(`[PureFlow Validation Error] ${validation.message || "Invalid Batch Size"}`);
   }
 
   const bathUPW = recipe.bathVolumeL * recipe.bathChanges;
@@ -386,9 +384,11 @@ function evaluateBatchProcess(process: ProcessDefinition): ProcessResult {
   // STRICT VALIDATION GUARD:
   // If batch size is invalid (0, negative, >100, float, NaN, etc.),
   // completely FORBID candidate generation and UPW calculation.
-  if (!validateBatchSize(rawBatchSize)) {
+  const validation = validateBatchSize(rawBatchSize);
+  if (!validation.valid) {
     const fallbackBatchSize = typeof rawBatchSize === "number" ? rawBatchSize : 0;
     const errorMsg =
+      validation.message ||
       "유효하지 않은 Batch Size (1~100 정수만 허용)로 인해 세정 최적화 및 UPW 계산이 차단되었습니다.";
 
     return {
@@ -425,6 +425,7 @@ function evaluateBatchProcess(process: ProcessDefinition): ProcessResult {
       qualityPass: false,
       hasValidCandidates: false,
       noValidMessage:
+        validation.message ||
         "Batch Size는 1~100 사이의 정수여야 합니다. AI 최적화 및 UPW 계산이 차단되었습니다.",
     };
   }

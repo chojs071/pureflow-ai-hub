@@ -8,6 +8,8 @@ import {
   WaferType,
   CleaningMode,
   ProcessCategoryId,
+  SimulationSettings,
+  DEFAULT_SIMULATION_SETTINGS,
 } from "./types";
 import { buildProcessPipeline } from "./data/processes";
 import { generateAndEvaluateCandidates } from "./utils/model";
@@ -20,6 +22,7 @@ import { CandidateTable } from "./components/CandidateTable";
 import { ProcessChart } from "./components/ProcessChart";
 import { FinalDashboard } from "./components/FinalDashboard";
 import { FormulaModal } from "./components/FormulaModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { ArrowRight, Sparkles, ChevronRight, Play, Pause, Zap } from "lucide-react";
 
 const AUTO_ADVANCE_DURATION_MS = 3800; // 3.8 seconds per process view
@@ -28,6 +31,10 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>("START");
   const [cleaningMode, setCleaningMode] = useState<CleaningMode>("single");
   const [batchSize, setBatchSize] = useState<number | undefined>(50);
+  const [simulationSettings, setSimulationSettings] = useState<SimulationSettings>(
+    DEFAULT_SIMULATION_SETTINGS,
+  );
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [wafer, setWafer] = useState<WaferConfig>({
     diameterInch: 12,
     diameterMm: 304.8,
@@ -92,12 +99,15 @@ export default function App() {
   // Handler: Start optimization
   const handleStartOptimization = () => {
     // Strict Guard: If in batch mode, validate batchSize before launching AI optimization
-    if (cleaningMode === "batch" && !validateBatchSize(batchSize)) {
-      console.warn(
-        "[PureFlow Guard] Blocked AI optimization execution due to invalid Batch Size:",
-        batchSize,
-      );
-      return;
+    if (cleaningMode === "batch") {
+      const validation = validateBatchSize(batchSize);
+      if (!validation.valid) {
+        console.warn(
+          "[PureFlow Guard] Blocked AI optimization execution due to invalid Batch Size:",
+          batchSize,
+        );
+        return;
+      }
     }
 
     const catIndex = activeProcesses.findIndex((p) => p.id === selectedCategoryId);
@@ -105,6 +115,17 @@ export default function App() {
     setIsAutoPlay(true);
     setAutoProgress(0);
     setAppState("PROCESS_ACTIVE");
+  };
+
+  // Handler for applying simulation settings & cleaning mode
+  const handleApplySettings = (newSettings: SimulationSettings, newMode: CleaningMode) => {
+    setSimulationSettings(newSettings);
+    setCleaningMode(newMode);
+    if (newMode === "batch") {
+      setBatchSize(newSettings.batch.batchSize);
+    } else {
+      setBatchSize(undefined);
+    }
   };
 
   // Handler for step selection inside a category
@@ -193,6 +214,7 @@ export default function App() {
         batchSize={batchSize}
         onReset={handleReset}
         onOpenFormula={() => setIsFormulaOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         currentStep={currentStepIndex + 1}
         totalSteps={activeProcesses.length}
       />
@@ -211,9 +233,8 @@ export default function App() {
             >
               <StartScreen
                 cleaningMode={cleaningMode}
-                onSelectCleaningMode={(mode) => setCleaningMode(mode)}
                 batchSize={batchSize}
-                onSelectBatchSize={setBatchSize}
+                simulationSettings={simulationSettings}
                 wafer={wafer}
                 onSelectWaferDiameter={handleSelectWaferDiameter}
                 onSelectWaferType={handleSelectWaferType}
@@ -223,6 +244,7 @@ export default function App() {
                 onSelectStepId={handleSelectStepId}
                 onStart={handleStartOptimization}
                 onOpenFormula={() => setIsFormulaOpen(true)}
+                onOpenSettings={() => setIsSettingsOpen(true)}
               />
             </motion.div>
           )}
@@ -387,6 +409,15 @@ export default function App() {
 
       {/* Formula & Literature Transparency Modal */}
       <FormulaModal isOpen={isFormulaOpen} onClose={() => setIsFormulaOpen(false)} />
+
+      {/* Simulation & Environment Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        cleaningMode={cleaningMode}
+        currentSettings={simulationSettings}
+        onApplySettings={handleApplySettings}
+      />
     </div>
   );
 }
