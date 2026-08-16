@@ -22,13 +22,7 @@ export const WaferTypeSelector: React.FC<WaferTypeSelectorProps> = ({ value, onC
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#071A2E] flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
-            4
-          </span>
-          <span>웨이퍼 종류 선택 (Wafer Type)</span>
-        </label>
+      <div className="flex items-center justify-end">
         <span className="text-xs font-semibold text-[#64748B]">
           {WAFER_TYPE_OPTIONS.find((t) => t.value === value)?.label}
         </span>

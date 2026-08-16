@@ -13,13 +13,7 @@ export const WaferDiameterSelector: React.FC<WaferDiameterSelectorProps> = ({
 }) => {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#071A2E] flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
-            3
-          </span>
-          <span>웨이퍼 직경 선택 (Wafer Diameter)</span>
-        </label>
+      <div className="flex items-center justify-end">
         <span className="font-mono text-xs font-bold text-[#00C2FF]">
           {value}&quot; ({WAFER_DIAMETER_OPTIONS.find((o) => o.inch === value)?.mm.toFixed(1)} mm)
         </span>
