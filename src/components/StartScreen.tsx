@@ -171,10 +171,10 @@ export const StartScreen: React.FC<StartScreenProps> = ({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="text-base font-bold text-[#00C2FF] hover:underline shrink-0 cursor-pointer flex items-center gap-1"
+              className="text-lg font-bold text-[#00C2FF] hover:underline shrink-0 cursor-pointer flex items-center gap-1.5"
             >
               <span>조건 변경</span>
-              <Settings className="h-4 w-4" />
+              <Settings className="h-5 w-5" />
             </button>
           </div>
 
