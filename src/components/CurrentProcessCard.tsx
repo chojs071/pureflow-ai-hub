@@ -279,6 +279,34 @@ export const CurrentProcessCard: React.FC<CurrentProcessCardProps> = ({ result }
       {/* Contamination Gauge Component */}
       <ContaminationGauge score={process.contaminationScore} band={process.contaminationBand} />
 
+      {/* Contamination Basis — 공통 대표 오염물(Cu) MVP 모델 */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-xs">
+        <span className="font-bold text-[#071A2E]">
+          대표 오염물: <span className="text-[#00C2FF]">Cu surface contamination</span>
+        </span>
+        <span className="text-[#64748B]">
+          초기 Cu 오염{" "}
+          <span className="font-mono font-bold text-[#071A2E]">
+            {formatContaminationValue(process.initialContamination, process.qualityMetric.unit)}
+          </span>
+        </span>
+        <span
+          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold ${
+            process.contaminationSourceType === "literature"
+              ? "bg-[#22C55E]/15 text-[#166534] border border-[#22C55E]/30"
+              : "bg-slate-100 text-[#64748B] border border-[#CBD5E1]"
+          }`}
+        >
+          Source:{" "}
+          {process.contaminationSourceType === "literature" ? "Literature-based" : "MVP Simulation"}
+        </span>
+        {process.contaminationReferences.length > 0 && (
+          <span className="text-[10px] text-[#64748B] font-mono">
+            ({process.contaminationReferences.join(", ")})
+          </span>
+        )}
+      </div>
+
       {/* Quality Assurance Gate (Top priority - Placed prominently) */}
       <div
         className={`rounded-2xl border p-5 ${

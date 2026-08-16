@@ -9,6 +9,10 @@ import {
   SingleWaferModelParameters,
   BatchRecipe,
   BatchModelParameters,
+  ContaminantInfo,
+  QualityMetricInfo,
+  ContaminationBand,
+  ProcessContaminationProfile,
 } from "../types";
 import { LITERATURE_REFERENCES } from "./literature";
 
@@ -2156,6 +2160,133 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   },
 ];
 
+/* ============================================================
+ * 공통 대표 오염물(Cu) 기반 MVP 오염도 모델
+ *
+ * MVP에서는 공정 간 비교와 시뮬레이션 로직을 단순화하기 위해
+ * Cu surface contamination [atoms/cm²]을 공통 대표 오염물로 채택한다.
+ * (실제 산업에서는 공정에 따라 particle/organic/etch residue 등
+ *  다양한 오염물이 존재하며, 향후 공정별 오염물 모델로 확장 가능)
+ * ============================================================ */
+
+/** 공통 대표 오염물 정보 */
+export const COMMON_CONTAMINANTS: ContaminantInfo[] = [
+  {
+    name: "Cu surface contamination",
+    category: "metal",
+    description:
+      "MVP 공통 대표 오염물. 공정 간 비교를 단순화하기 위해 Cu 표면 오염을 대표 지표로 사용합니다.",
+  },
+];
+
+/** 공통 MVP 품질 지표 — 모든 활성 공정에 동일 적용되는 simulation quality gate */
+export const COMMON_CU_QUALITY_METRIC: QualityMetricInfo = {
+  name: "Cu surface contamination",
+  unit: "atoms/cm²",
+  allowableLimit: 1.0e10,
+  description:
+    "Cu ≤ 1.0 × 10¹⁰ atoms/cm²는 PureFlow AI MVP의 공통 simulation quality gate이며, 모든 반도체 공정에 적용되는 공식 산업 규격이 아닙니다.",
+};
+
+/**
+ * 공정별 초기 Cu 오염 프로파일.
+ * 문헌값이 확인된 공정은 literature, 그 외에는 mvp_simulation으로 명확히 구분한다.
+ */
+export const CONTAMINATION_PROFILES: Record<ProcessCategoryId, ProcessContaminationProfile> = {
+  "wafer-mfg": {
+    processId: "wafer-mfg",
+    processName: "웨이퍼 제조 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 8.0e9,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+  oxidation: {
+    processId: "oxidation",
+    processName: "산화 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 1.0e10,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+  photo: {
+    processId: "photo",
+    processName: "포토 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 1.2e10,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+  etching: {
+    processId: "etching",
+    processName: "식각 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 1.8e10,
+    sourceType: "literature",
+    literatureReferences: ["Tsang C.F. et al. (2005)", "Tsutano K. et al. (2025)"],
+  },
+  deposition: {
+    processId: "deposition",
+    processName: "증착·이온주입 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 1.5e10,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+  metal: {
+    processId: "metal",
+    processName: "금속배선 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 2.0e10,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+  eds: {
+    processId: "eds",
+    processName: "EDS 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 0,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+  packaging: {
+    processId: "packaging",
+    processName: "패키징 공정",
+    contaminant: "Cu",
+    initialCuAtomsCm2: 1.3e10,
+    sourceType: "mvp_simulation",
+    literatureReferences: [],
+  },
+};
+
+/** 활성 공정(EDS 제외)의 초기 Cu 최소/최대값 — 오염도 정규화 기준 */
+const ACTIVE_CU_VALUES = Object.values(CONTAMINATION_PROFILES)
+  .filter((p) => p.processId !== "eds")
+  .map((p) => p.initialCuAtomsCm2);
+const GLOBAL_MIN_CU = Math.min(...ACTIVE_CU_VALUES);
+const GLOBAL_MAX_CU = Math.max(...ACTIVE_CU_VALUES);
+
+/**
+ * 공정별 초기 Cu 오염값을 0~100으로 정규화한 MVP simulation score.
+ * 실제 Cu 농도의 단위가 아니라 공정 간 상대적인 초기 오염 수준 표시용이다.
+ * 품질 판정에는 사용하지 않는다 (품질은 predictedCu ≤ allowableCu로 판정).
+ */
+export function getNormalizedContaminationScore(initialCu: number): number {
+  if (GLOBAL_MAX_CU === GLOBAL_MIN_CU) return 0;
+  return Math.max(
+    0,
+    Math.min(100, (100 * (initialCu - GLOBAL_MIN_CU)) / (GLOBAL_MAX_CU - GLOBAL_MIN_CU)),
+  );
+}
+
+/** 정규화 점수 → 오염 밴드 (MVP 시각화 구간) */
+export function contaminationBandFor(score: number): ContaminationBand {
+  if (score >= 90) return "very_high";
+  if (score >= 61) return "high";
+  if (score >= 31) return "medium";
+  return "low";
+}
+
 /**
  * Scales single wafer recipe and model parameters based on diameter in mm
  * Reference anchors: 200mm (203.2 mm) and 300mm (304.8 mm)
@@ -2323,12 +2454,18 @@ export function createProcessDefinition(
       contaminationScore: 0,
       contaminationBand: "low",
       initialContamination: 0,
+      contaminationSourceType: "mvp_simulation",
+      contaminationReferences: [],
       references: [],
       literatureVariables: [],
     };
   }
 
   const appliedBatchSize = cleaningMode === "batch" ? userBatchSize : undefined;
+
+  // 공정별 공통 대표 오염물(Cu) 프로파일 → 정규화 오염도
+  const profile = CONTAMINATION_PROFILES[category.id];
+  const contaminationScore = Math.round(getNormalizedContaminationScore(profile.initialCuAtomsCm2));
 
   const { recipe: singleRecipe, params: singleModelParams } = interpolateSingleWaferConfig(
     step,
@@ -2340,6 +2477,13 @@ export function createProcessDefinition(
     wafer.diameterMm,
     appliedBatchSize ?? 50,
   );
+
+  // 공통 대표 오염물(Cu) 스케일로 R_floor 재보정 (MVP calibration).
+  // 기존 스텝별 R_floor는 공정마다 단위가 달라 공통 Cu 게이트와 호환되지 않으므로,
+  // 초기 Cu 값의 5%로 통일한다. 세정 동역학(K/α/β/γ)은 스텝 원본값을 유지한다.
+  const cuFloor = profile.initialCuAtomsCm2 * 0.05;
+  singleModelParams.R_floor = cuFloor;
+  batchModelParams.R_floor = cuFloor;
 
   return {
     id: `${category.id}-${step.id}-${cleaningMode}-${wafer.diameterInch}in-${wafer.waferType}${appliedBatchSize !== undefined ? `-${appliedBatchSize}w` : ""}`,
@@ -2357,11 +2501,14 @@ export function createProcessDefinition(
     wafer,
     batchSize: appliedBatchSize,
     batchCapacity: step.batchCapacity || category.batchCapacity || 100,
-    contaminants: step.contaminants,
-    qualityMetric: step.qualityMetric,
-    contaminationScore: step.contaminationScore,
-    contaminationBand: step.contaminationBand,
-    initialContamination: step.initialContamination,
+    // 공통 대표 오염물(Cu) 기반 값으로 오버라이드 — 공정별 초기 Cu → 0~100 정규화
+    contaminants: COMMON_CONTAMINANTS,
+    qualityMetric: COMMON_CU_QUALITY_METRIC,
+    contaminationScore: contaminationScore,
+    contaminationBand: contaminationBandFor(contaminationScore),
+    initialContamination: profile.initialCuAtomsCm2,
+    contaminationSourceType: profile.sourceType,
+    contaminationReferences: profile.literatureReferences,
     singleRecipe: cleaningMode === "single" ? singleRecipe : undefined,
     singleModelParams: cleaningMode === "single" ? singleModelParams : undefined,
     batchRecipe: cleaningMode === "batch" ? batchRecipe : undefined,

@@ -78,6 +78,24 @@ export interface ProcessSequenceStep {
   cleaningStepId?: string;
 }
 
+/** 초기 Cu 오염값의 출처: 문헌 기반 / MVP 시뮬레이션 */
+export type ContaminationSourceType = "literature" | "mvp_simulation";
+
+/**
+ * 공정별 공통 대표 오염물(Cu) 프로파일.
+ * MVP에서는 공정 간 비교와 시뮬레이션 로직을 단순화하기 위해
+ * Cu surface contamination을 공통 대표 오염물로 사용한다.
+ * (실제 산업에서는 공정별 핵심 오염물이 다를 수 있으며, 확장 가능한 구조로 유지한다)
+ */
+export interface ProcessContaminationProfile {
+  processId: ProcessCategoryId;
+  processName: string;
+  contaminant: "Cu";
+  initialCuAtomsCm2: number;
+  sourceType: ContaminationSourceType;
+  literatureReferences: string[];
+}
+
 export interface ContaminantInfo {
   name: string;
   category: "metal" | "particle" | "organic" | "chemical";
@@ -287,6 +305,10 @@ export interface ProcessDefinition {
   contaminationScore: number;
   contaminationBand: ContaminationBand;
   initialContamination: number;
+
+  /** 공통 대표 오염물(Cu) 기반 오염 정보 */
+  contaminationSourceType: ContaminationSourceType;
+  contaminationReferences: string[];
 
   singleRecipe?: SingleWaferRecipe;
   singleModelParams?: SingleWaferModelParameters;

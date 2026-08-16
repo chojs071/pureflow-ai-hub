@@ -29,6 +29,8 @@ import {
   SimulationSettings,
 } from "../types";
 import { PROCESS_CATEGORIES } from "../data/processes";
+import { CONTAMINATION_PROFILES, getNormalizedContaminationScore } from "../data/processes";
+import { formatContaminationValue } from "../utils/model";
 import { validateBatchSize } from "../utils/validation";
 import { WaferDiameterSelector } from "./WaferDiameterSelector";
 import { WaferTypeSelector } from "./WaferTypeSelector";
@@ -378,38 +380,67 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                       </div>
                     </div>
 
-                    {/* Step Details Grid (Contaminants, Quality Gate, Literature Basis) */}
+                    {/* Step Details Grid (대표 오염물, 공통 품질 Gate, Literature Basis) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-2">
-                      {/* 1. Contaminants */}
+                      {/* 1. 대표 오염물 (MVP 공통 Cu 모델) */}
                       <div className="rounded-xl bg-[#F8FAFC] p-3.5 border border-[#E2E8F0] space-y-2">
                         <span className="font-bold text-[#071A2E] block text-[11px]">
-                          주요 관리 대상 오염물
+                          대표 오염물 (MVP 공통)
                         </span>
-                        <ul className="space-y-1 text-[11px] text-[#64748B]">
-                          {currentStep.contaminants.map((c, idx) => (
-                            <li key={idx} className="flex items-start gap-1.5">
-                              <span className="text-[#00C2FF] font-bold">•</span>
-                              <span className="text-[#071A2E] font-medium">{c.name}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <div className="space-y-1.5 text-[11px]">
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-[#00C2FF] font-bold">•</span>
+                            <span className="text-[#071A2E] font-medium">
+                              Cu surface contamination
+                            </span>
+                          </div>
+                          <div className="text-[#64748B]">
+                            초기 Cu 오염{" "}
+                            <span className="font-mono font-bold text-[#071A2E]">
+                              {formatContaminationValue(
+                                CONTAMINATION_PROFILES[currentCategory.id].initialCuAtomsCm2,
+                              )}
+                            </span>
+                          </div>
+                          <span
+                            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              CONTAMINATION_PROFILES[currentCategory.id].sourceType === "literature"
+                                ? "bg-[#22C55E]/15 text-[#166534] border border-[#22C55E]/30"
+                                : "bg-slate-100 text-[#64748B] border border-[#CBD5E1]"
+                            }`}
+                          >
+                            {CONTAMINATION_PROFILES[currentCategory.id].sourceType === "literature"
+                              ? "Literature-based"
+                              : "MVP Simulation"}
+                          </span>
+                          <p className="text-[10px] text-[#64748B] leading-tight">
+                            MVP에서는 공정 간 비교를 단순화하기 위해 Cu를 공통 대표 오염물로
+                            사용합니다. 정규화 오염도{" "}
+                            {Math.round(
+                              getNormalizedContaminationScore(
+                                CONTAMINATION_PROFILES[currentCategory.id].initialCuAtomsCm2,
+                              ),
+                            )}
+                            /100은 상대 비교용 시뮬레이션 지표입니다.
+                          </p>
+                        </div>
                       </div>
 
-                      {/* 2. Quality Metric & Gate Limit */}
+                      {/* 2. 공통 품질 지표 및 MVP Gate */}
                       <div className="rounded-xl bg-[#F8FAFC] p-3.5 border border-[#E2E8F0] space-y-2">
                         <span className="font-bold text-[#071A2E] block text-[11px]">
-                          품질 측정 지표 및 허용 기준
+                          공통 품질 지표 및 허용 기준 (MVP Gate)
                         </span>
                         <div className="space-y-1">
                           <div className="text-[11px] font-semibold text-[#071A2E]">
-                            {currentStep.qualityMetric.name}
+                            Cu surface contamination
                           </div>
                           <div className="inline-block px-2 py-0.5 rounded-md bg-[#22C55E]/15 text-[#166534] font-mono text-[11px] font-bold border border-[#22C55E]/30">
-                            허용 기준: {currentStep.qualityMetric.allowableLimit}{" "}
-                            {currentStep.qualityMetric.unit} 이하
+                            허용 기준: Cu ≤ 1.0 × 10¹⁰ atoms/cm²
                           </div>
                           <p className="text-[10px] text-[#64748B] leading-tight pt-1">
-                            {currentStep.qualityMetric.description}
+                            모든 활성 공정에 동일 적용되는 PureFlow AI MVP의 공통 simulation quality
+                            gate입니다. 모든 반도체 공정의 공식 산업 규격이 아닙니다.
                           </p>
                         </div>
                       </div>
