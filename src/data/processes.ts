@@ -20,7 +20,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "wafer-mfg",
     stepNumber: 1,
-    name: "웨이퍼 제조",
+    name: "웨이퍼 제조 공정",
     nameEn: "Wafer Manufacturing",
     shortDesc: "고순도 잉곳 절단 및 표면 연마 후 슬러리/금속 불순물 제거 세정",
     optimizationEnabled: true,
@@ -254,7 +254,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "oxidation",
     stepNumber: 2,
-    name: "산화",
+    name: "산화 공정",
     nameEn: "Oxidation",
     shortDesc: "고온 산화막 형성 전/후 표면 금속 불순물 및 자연산화막 제어 세정",
     optimizationEnabled: true,
@@ -482,7 +482,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "photo",
     stepNumber: 3,
-    name: "포토",
+    name: "포토 공정",
     nameEn: "Photolithography",
     shortDesc: "노광 후 현상(Develop) 약액 제거 및 패턴 쓰러짐 방지 초순수 린스",
     optimizationEnabled: true,
@@ -711,7 +711,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "etching",
     stepNumber: 4,
-    name: "식각",
+    name: "식각 공정",
     nameEn: "Etching",
     shortDesc: "플라즈마 식각 후 잔류 폴리머, 불소화물 및 금속 부산물 제거 세정",
     optimizationEnabled: true,
@@ -946,7 +946,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "deposition",
     stepNumber: 5,
-    name: "증착·이온주입",
+    name: "증착·이온주입 공정",
     nameEn: "Deposition / Ion Implantation",
     shortDesc: "박막 형성 전 계면 세정 및 고농도 이온주입 표면 경화층(Crust) 제거",
     optimizationEnabled: true,
@@ -1280,7 +1280,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "metal",
     stepNumber: 6,
-    name: "금속배선",
+    name: "금속배선 공정",
     nameEn: "Metal Interconnect",
     shortDesc: "Cu/Al 다층 배선 형성 및 CMP(화학기계적연마) 후 슬러리·방청제 세정",
     optimizationEnabled: true,
@@ -1615,7 +1615,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "eds",
     stepNumber: 7,
-    name: "EDS",
+    name: "EDS 공정",
     nameEn: "Electrical Die Sorting",
     shortDesc: "웨이퍼 완성 후 개별 칩 전기적 특성/수율 검사 (건식 검사 단계)",
     optimizationEnabled: false,
@@ -1628,7 +1628,7 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
   {
     id: "packaging",
     stepNumber: 8,
-    name: "패키징",
+    name: "패키징 공정",
     nameEn: "Packaging",
     shortDesc: "웨이퍼 후면 연삭(Backgrinding), 다이싱, 하이브리드 본딩 전/후 세정",
     optimizationEnabled: true,
