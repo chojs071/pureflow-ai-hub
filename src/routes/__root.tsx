@@ -77,19 +77,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PureFlow AI — AI 기반 초순수 최적화 시스템" },
+      { title: "PureFlow AI — 반도체 초순수(UPW) 최적화 시스템" },
       {
         name: "description",
         content:
-          "세정 후 허용 잔류 오염 기준을 유지하면서 기존 초순수 사용량을 어디까지 줄일 수 있는지 판단합니다.",
+          "AI 기반 반도체 제조 공정 초순수 최적화 시스템 및 ESG 모니터링",
       },
-      { property: "og:title", content: "PureFlow AI — AI 기반 초순수 최적화 시스템" },
+      { property: "og:title", content: "PureFlow AI — 반도체 초순수(UPW) 최적화 시스템" },
       {
         property: "og:description",
-        content: "품질은 유지하고, 불필요한 UPW 사용은 줄입니다.",
+        content: "AI 기반 반도체 제조 공정 초순수 최적화 시스템 및 ESG 모니터링",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "PureFlow AI — 반도체 초순수(UPW) 최적화 시스템" },
+      { name: "twitter:description", content: "AI 기반 반도체 제조 공정 초순수 최적화 시스템 및 ESG 모니터링" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbcf9b67735fa034eb75b8bfba3aeee5/id-preview-cc6b3804--f6c22977-3c13-4b63-9164-d23989125a05.lovable.app-1786895934920.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbcf9b67735fa034eb75b8bfba3aeee5/id-preview-cc6b3804--f6c22977-3c13-4b63-9164-d23989125a05.lovable.app-1786895934920.png" },
     ],
     links: [
       {
