@@ -18,6 +18,7 @@ import {
   Sliders,
   Settings,
   Waves,
+  ArrowDown,
 } from "lucide-react";
 import {
   CleaningMode,
@@ -285,40 +286,93 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                       </span>
                     </div>
 
-                    {/* Step Sub-Selection: 세정·린스 단계 선택 */}
+                    {/* 적용 세정 공정 흐름 (전체 시퀀스 표시 — 단계 선택 아님) */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-[#071A2E] text-xs flex items-center gap-1.5">
                           <Sliders className="h-3.5 w-3.5 text-[#00C2FF]" />
-                          <span>
-                            적용 가능한 세정·린스 단계 선택 ({currentCategory.cleaningSteps.length}
-                            개)
-                          </span>
+                          <span>적용 세정 공정 흐름 ({currentCategory.sequence.length}단계)</span>
                         </span>
                         <span className="text-[11px] text-[#64748B]">
-                          클릭하여 최적화할 세정 단계를 변경할 수 있습니다
+                          세정 → 린스 → 건조 순서로 진행되며, UPW 최적화는 세정·린스 단계에만
+                          적용됩니다
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {currentCategory.cleaningSteps.map((step) => {
-                          const isStepSelected = step.id === currentStep.id;
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 pt-1">
+                        {currentCategory.sequence.map((seqStep, seqIdx) => {
+                          const isCurrentStep = seqStep.cleaningStepId === currentStep.id;
+                          const seqTypeLabel =
+                            seqStep.type === "clean"
+                              ? "세정"
+                              : seqStep.type === "rinse"
+                                ? "린스"
+                                : "건조";
                           return (
-                            <button
-                              key={step.id}
-                              type="button"
-                              onClick={() => onSelectStepId(step.id)}
-                              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                                isStepSelected
-                                  ? "bg-[#071A2E] text-[#00C2FF] border-[#071A2E] shadow-xs"
-                                  : "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0] hover:text-[#071A2E] hover:border-[#CBD5E1]"
-                              }`}
+                            <div
+                              key={seqStep.id}
+                              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-1.5 flex-1"
                             >
-                              <span>{step.name}</span>
-                              {isStepSelected && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-[#00C2FF]" />
+                              <div
+                                className={`relative flex-1 rounded-xl border p-3 ${
+                                  isCurrentStep
+                                    ? "border-[#00C2FF] bg-[#00C2FF]/10 ring-1 ring-[#00C2FF]"
+                                    : seqStep.upwRelevant
+                                      ? "border-[#E2E8F0] bg-[#F8FAFC]"
+                                      : "border-dashed border-[#CBD5E1] bg-white"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <span className="text-xs font-black text-[#071A2E] flex items-center gap-1.5 min-w-0">
+                                    <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#071A2E] text-[10px] font-bold text-[#00C2FF]">
+                                      {seqIdx + 1}
+                                    </span>
+                                    <span className="truncate">{seqStep.name}</span>
+                                  </span>
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                      seqStep.type === "clean"
+                                        ? "bg-[#00C2FF]/15 text-[#071A2E]"
+                                        : seqStep.type === "rinse"
+                                          ? "bg-emerald-100 text-emerald-800"
+                                          : "bg-slate-100 text-[#64748B]"
+                                    }`}
+                                  >
+                                    {seqTypeLabel}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-[#64748B] mt-1.5 leading-tight">
+                                  {seqStep.description}
+                                </p>
+                                <div className="mt-1.5">
+                                  {isCurrentStep ? (
+                                    <span className="inline-flex items-center gap-1 rounded bg-[#00C2FF] px-1.5 py-0.5 text-[10px] font-black text-white">
+                                      ● 현재 분석 대상
+                                    </span>
+                                  ) : seqStep.upwRelevant ? (
+                                    <span className="inline-flex items-center gap-1 rounded bg-[#22C55E]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#166534]">
+                                      UPW 최적화 대상
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-[#64748B]">
+                                      UPW 해당 없음
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {seqIdx < currentCategory.sequence.length - 1 && (
+                                <>
+                                  <ArrowRight
+                                    className="hidden sm:block h-4 w-4 text-[#94A3B8] shrink-0"
+                                    aria-hidden
+                                  />
+                                  <ArrowDown
+                                    className="sm:hidden h-4 w-4 text-[#94A3B8] mx-auto shrink-0"
+                                    aria-hidden
+                                  />
+                                </>
                               )}
-                            </button>
+                            </div>
                           );
                         })}
                       </div>

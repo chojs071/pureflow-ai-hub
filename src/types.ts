@@ -59,6 +59,25 @@ export type ProcessCategoryId =
 
 export type ContaminationBand = "low" | "medium" | "high" | "very_high";
 
+/** 세정 시퀀스 단계 유형: 세정 → 린스 → 건조 */
+export type SequenceStepType = "clean" | "rinse" | "dry";
+
+/**
+ * 공정의 전체 세정 시퀀스를 구성하는 단계.
+ * 공정 흐름에는 항상 포함되지만, UPW 최적화는 upwRelevant 단계에만 적용한다.
+ */
+export interface ProcessSequenceStep {
+  id: string;
+  name: string;
+  type: SequenceStepType;
+  description: string;
+  /** UPW가 실제 사용되는 단계인지 (건조 등은 false) */
+  upwRelevant: boolean;
+  optimizationEnabled: boolean;
+  /** 이 시퀀스 단계와 연결되는 최적화 대상 세정 스텝 (UPW 관련 단계만) */
+  cleaningStepId?: string;
+}
+
 export interface ContaminantInfo {
   name: string;
   category: "metal" | "particle" | "organic" | "chemical";
@@ -232,6 +251,9 @@ export interface ProcessCategory {
   nonOptimizationReason?: string;
   batchCapacity?: number; // Max allowable batch size (e.g. 100)
 
+  /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름) */
+  sequence: ProcessSequenceStep[];
+
   cleaningSteps: CleaningStepDefinition[];
 }
 
@@ -248,6 +270,9 @@ export interface ProcessDefinition {
   cleaningStepName: string;
   cleaningStepSubName: string;
   description: string;
+
+  /** 해당 공정의 전체 세정 시퀀스 (항상 표시, 현재 분석 단계 강조용) */
+  sequence: ProcessSequenceStep[];
 
   optimizationEnabled: boolean;
   nonOptimizationReason?: string;

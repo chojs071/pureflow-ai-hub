@@ -19,6 +19,8 @@ import {
   Package,
   ShieldAlert,
   Info,
+  ArrowRight,
+  ArrowDown,
 } from "lucide-react";
 import { ProcessResult } from "../types";
 import { ContaminationGauge } from "./ContaminationGauge";
@@ -178,6 +180,101 @@ export const CurrentProcessCard: React.FC<CurrentProcessCardProps> = ({ result }
           {process.description}
         </p>
       </div>
+
+      {/* 적용 세정 공정 흐름 — 전체 시퀀스 항상 표시, 현재 분석 단계만 강조 */}
+      {process.sequence.length > 0 && (
+        <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#071A2E] flex items-center gap-1.5">
+              <Layers className="h-3.5 w-3.5 text-[#00C2FF]" />
+              적용 세정 공정 흐름
+            </span>
+            <span className="text-[11px] text-[#64748B]">
+              UPW 최적화는 세정·린스 단계에만 적용됩니다
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+            {process.sequence.map((seqStep, seqIdx) => {
+              const activeIdx = process.sequence.findIndex(
+                (s) => s.cleaningStepId === process.stepId,
+              );
+              const isActive = seqStep.cleaningStepId === process.stepId;
+              const isComplete = activeIdx >= 0 && seqIdx < activeIdx;
+              const seqTypeLabel =
+                seqStep.type === "clean" ? "세정" : seqStep.type === "rinse" ? "린스" : "건조";
+              return (
+                <div
+                  key={seqStep.id}
+                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 flex-1"
+                >
+                  <div
+                    className={`flex-1 rounded-xl border p-3 transition-colors ${
+                      isActive
+                        ? "border-[#00C2FF] bg-[#00C2FF]/10 ring-1 ring-[#00C2FF]"
+                        : isComplete
+                          ? "border-[#22C55E]/40 bg-[#22C55E]/5"
+                          : seqStep.upwRelevant
+                            ? "border-[#E2E8F0] bg-white"
+                            : "border-dashed border-[#CBD5E1] bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-xs font-black text-[#071A2E] flex items-center gap-1.5 min-w-0">
+                        <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#071A2E] text-[10px] font-bold text-[#00C2FF]">
+                          {seqIdx + 1}
+                        </span>
+                        <span className="truncate">{seqStep.name}</span>
+                      </span>
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                          seqStep.type === "clean"
+                            ? "bg-[#00C2FF]/15 text-[#071A2E]"
+                            : seqStep.type === "rinse"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-[#64748B]"
+                        }`}
+                      >
+                        {seqTypeLabel}
+                      </span>
+                    </div>
+                    <div className="mt-1.5">
+                      {isActive ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-[#00C2FF] px-1.5 py-0.5 text-[10px] font-black text-white">
+                          ● 현재 분석
+                        </span>
+                      ) : isComplete ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-[#22C55E]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#166534]">
+                          <CheckCircle className="h-3 w-3" /> 완료
+                        </span>
+                      ) : seqStep.upwRelevant ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-[#64748B]">
+                          <Clock className="h-3 w-3" /> 대기
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-[#64748B]">
+                          UPW 해당 없음
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {seqIdx < process.sequence.length - 1 && (
+                    <>
+                      <ArrowRight
+                        className="hidden sm:block h-4 w-4 text-[#94A3B8] shrink-0"
+                        aria-hidden
+                      />
+                      <ArrowDown
+                        className="sm:hidden h-4 w-4 text-[#94A3B8] mx-auto shrink-0"
+                        aria-hidden
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Contamination Gauge Component */}
       <ContaminationGauge score={process.contaminationScore} band={process.contaminationBand} />

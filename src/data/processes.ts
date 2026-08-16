@@ -24,6 +24,36 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Wafer Manufacturing",
     shortDesc: "고순도 잉곳 절단 및 표면 연마 후 슬러리/금속 불순물 제거 세정",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-wm-clean",
+        name: "Wafer Cleaning",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "wafer-cleaning",
+      },
+      {
+        id: "seq-wm-rinse",
+        name: "Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "rinse-dry",
+      },
+      {
+        id: "seq-wm-dry",
+        name: "Dry",
+        type: "dry",
+        description: "린스 후 웨이퍼 표면의 물을 제거하는 단계입니다.",
+        upwRelevant: false,
+        optimizationEnabled: false,
+      },
+    ],
     cleaningSteps: [
       {
         id: "wafer-cleaning",
@@ -258,6 +288,28 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Oxidation",
     shortDesc: "고온 산화막 형성 전/후 표면 금속 불순물 및 자연산화막 제어 세정",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-ox-clean",
+        name: "Pre-Oxidation Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "pre-ox-clean",
+      },
+      {
+        id: "seq-ox-rinse",
+        name: "Post-Oxidation Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "post-ox-rinse",
+      },
+    ],
     cleaningSteps: [
       {
         id: "pre-ox-clean",
@@ -486,6 +538,28 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Photolithography",
     shortDesc: "노광 후 현상(Develop) 약액 제거 및 패턴 쓰러짐 방지 초순수 린스",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-ph-dev-rinse",
+        name: "Developer Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "developer-rinse",
+      },
+      {
+        id: "seq-ph-clean",
+        name: "Post-Develop Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "post-develop-rinse",
+      },
+    ],
     cleaningSteps: [
       {
         id: "developer-rinse",
@@ -715,6 +789,28 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Etching",
     shortDesc: "플라즈마 식각 후 잔류 폴리머, 불소화물 및 금속 부산물 제거 세정",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-et-clean",
+        name: "Post-Etch Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "post-etch-clean",
+      },
+      {
+        id: "seq-et-rinse",
+        name: "UPW Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "upw-rinse",
+      },
+    ],
     cleaningSteps: [
       {
         id: "post-etch-clean",
@@ -950,6 +1046,37 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Deposition / Ion Implantation",
     shortDesc: "박막 형성 전 계면 세정 및 고농도 이온주입 표면 경화층(Crust) 제거",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-dep-pre",
+        name: "Pre-Dep Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "pre-dep-clean",
+      },
+      {
+        id: "seq-dep-post",
+        name: "Post-Implant Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "post-implant-clean",
+      },
+      {
+        id: "seq-dep-rinse",
+        name: "Cascade Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "cascade-rinse",
+      },
+    ],
     cleaningSteps: [
       {
         id: "pre-dep-clean",
@@ -1284,6 +1411,37 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Metal Interconnect",
     shortDesc: "Cu/Al 다층 배선 형성 및 CMP(화학기계적연마) 후 슬러리·방청제 세정",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-me-cmp",
+        name: "Post-CMP Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "post-cmp-clean",
+      },
+      {
+        id: "seq-me-cu",
+        name: "Cu Clean",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "cu-clean",
+      },
+      {
+        id: "seq-me-final",
+        name: "Final Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "final-rinse",
+      },
+    ],
     cleaningSteps: [
       {
         id: "post-cmp-clean",
@@ -1621,6 +1779,8 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     optimizationEnabled: false,
     nonOptimizationReason:
       "EDS는 전기적 특성 검사 중심 공정으로 PureFlow AI의 UPW 세정 최적화 대상이 아닙니다.",
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [],
     cleaningSteps: [],
   },
 
@@ -1632,6 +1792,37 @@ export const PROCESS_CATEGORIES: ProcessCategory[] = [
     nameEn: "Packaging",
     shortDesc: "웨이퍼 후면 연삭(Backgrinding), 다이싱, 하이브리드 본딩 전/후 세정",
     optimizationEnabled: true,
+    /** 해당 공정의 전체 세정 시퀀스 (세정 → 린스 → 건조 흐름, 건조는 UPW 계산 제외) */
+    sequence: [
+      {
+        id: "seq-pk-cmp",
+        name: "CMP 후 세정",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "packaging-cmp",
+      },
+      {
+        id: "seq-pk-bond",
+        name: "Bonding 전 표면 세정",
+        type: "clean",
+        description: "웨이퍼 표면의 잔류 오염과 세정 대상 물질을 제거하는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "bonding-surface-clean",
+      },
+      {
+        id: "seq-pk-rinse",
+        name: "Surface Rinse",
+        type: "rinse",
+        description:
+          "세정 후 웨이퍼 표면에 남아 있는 화학물질과 잔류물을 UPW/DIW로 씻어내는 단계입니다.",
+        upwRelevant: true,
+        optimizationEnabled: true,
+        cleaningStepId: "surface-rinse",
+      },
+    ],
     cleaningSteps: [
       {
         id: "packaging-cmp",
@@ -2115,6 +2306,7 @@ export function createProcessDefinition(
       cleaningStepSubName: "UPW 최적화 대상 제외",
       description:
         category.nonOptimizationReason || "비세정 공정으로 초순수 최적화 대상에서 제외됩니다.",
+      sequence: category.sequence,
       optimizationEnabled: false,
       nonOptimizationReason: category.nonOptimizationReason,
       cleaningMode,
@@ -2159,6 +2351,7 @@ export function createProcessDefinition(
     cleaningStepName: step.name,
     cleaningStepSubName: step.nameEn,
     description: step.description,
+    sequence: category.sequence,
     optimizationEnabled: true,
     cleaningMode,
     wafer,
