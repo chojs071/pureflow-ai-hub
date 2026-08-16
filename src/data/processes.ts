@@ -13,8 +13,17 @@ import {
   QualityMetricInfo,
   ContaminationBand,
   ProcessContaminationProfile,
+  SimulationSettings,
+  DEFAULT_SINGLE_SETTINGS,
+  DEFAULT_BATCH_SETTINGS,
 } from "../types";
 import { LITERATURE_REFERENCES } from "./literature";
+
+/** 기본값 대비 비율로 레시피 값을 조정한다 (사용자 설정 → 공정별 레시피 반영) */
+function scaleBy(recipeValue: number, userValue: number, defaultValue: number): number {
+  if (!(defaultValue > 0) || !(userValue > 0)) return Number(recipeValue.toFixed(1));
+  return Number((recipeValue * (userValue / defaultValue)).toFixed(1));
+}
 
 /**
  * 8 Major Semiconductor Process Categories Definition
@@ -2424,6 +2433,7 @@ export function createProcessDefinition(
   cleaningMode: CleaningMode,
   wafer: WaferConfig,
   userBatchSize?: number,
+  settings?: SimulationSettings,
 ): ProcessDefinition {
   if (!category.optimizationEnabled || !step) {
     return {
@@ -2485,6 +2495,49 @@ export function createProcessDefinition(
   singleModelParams.R_floor = cuFloor;
   batchModelParams.R_floor = cuFloor;
 
+  // 환경설정 값을 계산 엔진에 직접 반영한다 (Current Input Condition).
+  // 설정값은 기본값(DEFAULT) 대비 비율로 각 공정의 기준 레시피에 적용하여
+  // 공정별 레시피 차별화를 유지하면서 사용자 입력이 실제 계산에 반영되게 한다.
+  // 온도는 절대값으로 동역학(Arrhenius)에 직접 반영한다.
+  if (settings) {
+    if (cleaningMode === "single" && settings.single) {
+      const s = settings.single;
+      const d = DEFAULT_SINGLE_SETTINGS;
+      singleRecipe.cleaningTimeMin = scaleBy(
+        singleRecipe.cleaningTimeMin,
+        s.cleaningTimeMin,
+        d.cleaningTimeMin,
+      );
+      singleRecipe.rinseTimeMin = scaleBy(
+        singleRecipe.rinseTimeMin,
+        s.rinseTimeMin,
+        d.rinseTimeMin,
+      );
+      singleRecipe.flowRateLpm = scaleBy(singleRecipe.flowRateLpm, s.flowRateLpm, d.flowRateLpm);
+      singleRecipe.spinRpm = Math.round(scaleBy(singleRecipe.spinRpm, s.spinRpm, d.spinRpm));
+      singleRecipe.rinseCycles = Math.max(
+        1,
+        Math.round(singleRecipe.rinseCycles * (s.rinseCycles / Math.max(1, d.rinseCycles))),
+      );
+    } else if (cleaningMode === "batch" && settings.batch) {
+      const b = settings.batch;
+      const d = DEFAULT_BATCH_SETTINGS;
+      batchRecipe.processTimeMin = scaleBy(
+        batchRecipe.processTimeMin,
+        b.processTimeMin,
+        d.processTimeMin,
+      );
+      batchRecipe.rinseTimeMin = scaleBy(batchRecipe.rinseTimeMin, b.rinseTimeMin, d.rinseTimeMin);
+      batchRecipe.rinseCycles = Math.max(
+        1,
+        Math.round(batchRecipe.rinseCycles * (b.rinseCycles / Math.max(1, d.rinseCycles))),
+      );
+    }
+  }
+
+  const simulationTemperatureC =
+    cleaningMode === "single" ? settings?.single?.temperatureC : settings?.batch?.temperatureC;
+
   return {
     id: `${category.id}-${step.id}-${cleaningMode}-${wafer.diameterInch}in-${wafer.waferType}${appliedBatchSize !== undefined ? `-${appliedBatchSize}w` : ""}`,
     categoryId: category.id,
@@ -2509,6 +2562,7 @@ export function createProcessDefinition(
     initialContamination: profile.initialCuAtomsCm2,
     contaminationSourceType: profile.sourceType,
     contaminationReferences: profile.literatureReferences,
+    simulationTemperatureC: simulationTemperatureC,
     singleRecipe: cleaningMode === "single" ? singleRecipe : undefined,
     singleModelParams: cleaningMode === "single" ? singleModelParams : undefined,
     batchRecipe: cleaningMode === "batch" ? batchRecipe : undefined,
@@ -2527,15 +2581,16 @@ export function buildProcessPipeline(
   wafer: WaferConfig,
   customSteps?: Record<ProcessCategoryId, string>,
   batchSize?: number,
+  settings?: SimulationSettings,
 ): ProcessDefinition[] {
   return PROCESS_CATEGORIES.map((cat) => {
     if (!cat.optimizationEnabled || cat.cleaningSteps.length === 0) {
-      return createProcessDefinition(cat, null, cleaningMode, wafer, batchSize);
+      return createProcessDefinition(cat, null, cleaningMode, wafer, batchSize, settings);
     }
     const chosenStepId = customSteps?.[cat.id];
     const step = chosenStepId
       ? cat.cleaningSteps.find((s) => s.id === chosenStepId) || cat.cleaningSteps[0]
       : cat.cleaningSteps[0];
-    return createProcessDefinition(cat, step, cleaningMode, wafer, batchSize);
+    return createProcessDefinition(cat, step, cleaningMode, wafer, batchSize, settings);
   });
 }

@@ -310,6 +310,9 @@ export interface ProcessDefinition {
   contaminationSourceType: ContaminationSourceType;
   contaminationReferences: string[];
 
+  /** 환경설정의 시뮬레이션 온도 (℃) — 세정/린스 동역학에 반영 */
+  simulationTemperatureC?: number;
+
   singleRecipe?: SingleWaferRecipe;
   singleModelParams?: SingleWaferModelParameters;
 
@@ -349,6 +352,13 @@ export interface CandidateCondition {
   savingsPercent: number;
   rejectionReason?: string;
   conditionSummary: string; // human readable summary of recipe
+
+  // 순차 계산 엔진 결과 (세정 → 린스 분리)
+  cleaningUPW?: number; // 세정 단계 UPW 사용량
+  rinseUPW?: number; // 린스 단계 UPW 사용량
+  cleaningEfficiency?: number; // η_clean (0~1)
+  rinseEfficiency?: number; // η_rinse (0~1)
+  contaminationAfterCleaning?: number; // C_clean (세정 직후 잔류 오염)
 }
 
 export interface ProcessResult {

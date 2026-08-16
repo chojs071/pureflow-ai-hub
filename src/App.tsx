@@ -61,9 +61,11 @@ export default function App() {
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Results for each completed/active step
+  // 환경설정(simulationSettings)이 계산 엔진에 직접 반영된다 —
+  // 사용자가 입력한 세정/린스 조건이 기준 조건이 되고 최적화는 이를 기준으로 탐색한다.
   const activeProcesses = useMemo(() => {
-    return buildProcessPipeline(cleaningMode, wafer, selectedSteps, batchSize);
-  }, [cleaningMode, wafer, selectedSteps, batchSize]);
+    return buildProcessPipeline(cleaningMode, wafer, selectedSteps, batchSize, simulationSettings);
+  }, [cleaningMode, wafer, selectedSteps, batchSize, simulationSettings]);
 
   // Precompute evaluated results for all processes
   const evaluatedResults: ProcessResult[] = useMemo(() => {

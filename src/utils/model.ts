@@ -15,97 +15,181 @@ export { validateBatchSize, getBatchSizeErrorMessage };
 
 /**
  * ============================================================================
- * 1. SINGLE WAFER SURROGATE MODEL & UPW CALCULATION
+ * 1. SINGLE WAFER — 순차 세정/린스 엔진 (Sequential Cleaning → Rinse Engines)
  * ============================================================================
- * Equation:
- * R_pred = R_floor + (R_initial - R_floor) * exp(-K * t_eff * (Q/Q_ref)^alpha * (RPM/RPM_ref)^gamma * N^beta)
+ * 계산 순서 (절대 병렐 계산하지 않는다):
+ *   C_initial → [Cleaning Engine] → C_clean → [Rinse Engine] → C_final → Quality Gate
  *
- * UPW = Q (L/min) * rinseTime (min) * cycles (N)  [L / wafer]
+ * 각 단계 제거율은 saturation 형태를 가진다:
+ *   η = 1 - exp(-exposure),  0 ≤ η ≤ 1
+ *
+ * Cleaning Engine:
+ *   C_clean = R_floor + (C_initial - R_floor) · exp(-K·t_clean·(Q/Q_ref)^α·(RPM/RPM_ref)^γ)
+ * Rinse Engine (세정 후 잔류를 입력으로 사용):
+ *   C_final = R_floor + (C_clean - R_floor) · exp(-K·t_rinse·(Q/Q_ref)^α·(RPM/RPM_ref)^γ·N^β)
+ *
+ * UPW (세정/린스 독립 계산):
+ *   V_clean = Q · t_clean (세정은 1회 통과)
+ *   V_rinse = Q · t_rinse · N
+ *   V_total = V_clean + V_rinse
  */
+
+/** 단계별 제거 계산 결과 */
+export interface StageRemovalResult {
+  cIn: number; // 단계 입력 오염
+  cOut: number; // 단계 출력(잔류) 오염
+  efficiency: number; // η = 1 - exp(-exposure), 0~1
+  exposure: number; // 지수 노출량
+}
+
+/**
+ * 온도 효과 (Simulation coefficient):
+ * Arrhenius 근사 — 기준 20℃ 대비 절대온도 비의 1.5제곱.
+ * 계수(exp=1.5)는 MVP 시뮬레이션 계수이며 문헌 직접 측정값이 아니다.
+ */
+export function temperatureFactor(temperatureC: number): number {
+  const T = typeof temperatureC === "number" && Number.isFinite(temperatureC) ? temperatureC : 20;
+  return Math.pow((T + 273.15) / 293.15, 1.5);
+}
+
+/** Cleaning Engine — 세정 조건(시간·유량·RPM)이 실제 계산에 반영된다 */
+export function calculateCleaningStageSingle(
+  C_initial: number,
+  recipe: SingleWaferRecipe,
+  params: SingleWaferModelParameters,
+  temperatureC?: number,
+): StageRemovalResult {
+  const { R_floor, K, alpha, gamma, Q_ref, RPM_ref } = params;
+  const flowFactor = Math.pow(Math.max(0.1, recipe.flowRateLpm / Q_ref), alpha);
+  const rpmFactor = Math.pow(Math.max(0.1, recipe.spinRpm / RPM_ref), gamma);
+  const exposure =
+    K * temperatureFactor(temperatureC ?? 20) * recipe.cleaningTimeMin * flowFactor * rpmFactor;
+  const delta = Math.max(0, C_initial - R_floor);
+  const cOut = R_floor + delta * Math.exp(-exposure);
+  return { cIn: C_initial, cOut, efficiency: 1 - Math.exp(-exposure), exposure };
+}
+
+/** Rinse Engine — 반드시 세정 후 잔류 오염(C_clean)을 입력으로 사용한다 */
+export function calculateRinseStageSingle(
+  C_clean: number,
+  recipe: SingleWaferRecipe,
+  params: SingleWaferModelParameters,
+  temperatureC?: number,
+): StageRemovalResult {
+  const { R_floor, K, alpha, beta, gamma, Q_ref, RPM_ref } = params;
+  const flowFactor = Math.pow(Math.max(0.1, recipe.flowRateLpm / Q_ref), alpha);
+  const rpmFactor = Math.pow(Math.max(0.1, recipe.spinRpm / RPM_ref), gamma);
+  const cycleFactor = Math.pow(Math.max(1, recipe.rinseCycles), beta);
+  const exposure =
+    K *
+    temperatureFactor(temperatureC ?? 20) *
+    recipe.rinseTimeMin *
+    flowFactor *
+    rpmFactor *
+    cycleFactor;
+  const delta = Math.max(0, C_clean - R_floor);
+  const cOut = R_floor + delta * Math.exp(-exposure);
+  return { cIn: C_clean, cOut, efficiency: 1 - Math.exp(-exposure), exposure };
+}
+
+/** 통합 잔류 계산 — 순차 엔진(세정 → 린스)으로 최종 C_final을 반환한다 */
 export function calculateSingleWaferResidual(
   R_initial: number,
   recipe: SingleWaferRecipe,
   params: SingleWaferModelParameters,
+  temperatureC?: number,
 ): number {
-  const { R_floor, K, alpha, beta, gamma, Q_ref, RPM_ref } = params;
-  const effectiveTime = recipe.cleaningTimeMin + recipe.rinseTimeMin;
-  const flowRatio = Math.max(0.1, recipe.flowRateLpm / Q_ref);
-  const rpmRatio = Math.max(0.1, recipe.spinRpm / RPM_ref);
-  const cycleFactor = Math.pow(Math.max(1, recipe.rinseCycles), beta);
+  const cleaned = calculateCleaningStageSingle(R_initial, recipe, params, temperatureC);
+  return calculateRinseStageSingle(cleaned.cOut, recipe, params, temperatureC).cOut;
+}
 
-  const flowFactor = Math.pow(flowRatio, alpha);
-  const rpmFactor = Math.pow(rpmRatio, gamma);
-
-  // K, alpha, beta, gamma are MVP simulation parameters
-  const exponent = -K * effectiveTime * flowFactor * rpmFactor * cycleFactor;
-  const delta = Math.max(0, R_initial - R_floor);
-
-  const R_pred = R_floor + delta * Math.exp(exponent);
-  return R_pred;
+/** 세정 UPW와 린스 UPW를 독립적으로 계산한다 */
+export function calculateSingleWaferUPWBreakdown(recipe: SingleWaferRecipe): {
+  cleaningUPW: number;
+  rinseUPW: number;
+  totalUPW: number;
+} {
+  const cleaningUPW = Number((recipe.flowRateLpm * recipe.cleaningTimeMin).toFixed(1)); // 1회 통과
+  const rinseUPW = Number(
+    (recipe.flowRateLpm * recipe.rinseTimeMin * recipe.rinseCycles).toFixed(1),
+  );
+  return { cleaningUPW, rinseUPW, totalUPW: Number((cleaningUPW + rinseUPW).toFixed(1)) };
 }
 
 export function calculateSingleWaferUPW(recipe: SingleWaferRecipe): number {
-  return Number((recipe.flowRateLpm * recipe.rinseTimeMin * recipe.rinseCycles).toFixed(1));
+  return calculateSingleWaferUPWBreakdown(recipe).totalUPW;
 }
 
 /**
  * ============================================================================
- * 2. BATCH SURROGATE MODEL & UPW CALCULATION
+ * 2. BATCH — 순차 세정/린스 엔진
  * ============================================================================
- * Equation:
- * R_pred_batch = R_floor + (R_initial - R_floor) * exp(-K_batch * t_proc * bathFactor * rinseFactor * cycleFactor)
+ * 계산 순서: C_initial → [Cleaning: bath immersion] → C_clean → [Rinse: overflow] → C_final
  *
- * where:
- * bathFactor = ((bathVolumeL / batchSize) / bathVolumeRefPerWafer)^alpha_bath
- * rinseFactor = ((rinseFlowRateLpm * rinseTimeMin) / (rinseFlowRefLpm * 6.0))^alpha_rinse
- * cycleFactor = (rinseCycles)^beta_cycle
+ * Cleaning Engine (bath chemistry):
+ *   C_clean = R_floor + (C_initial - R_floor)·exp(-K_batch·t_process·bathFactor)
+ * Rinse Engine (세정 후 잔류를 입력으로 사용):
+ *   C_final = R_floor + (C_clean - R_floor)·exp(-K_batch·t_rinse·rinseFactor·cycleFactor)
  *
- * UPW Calculation:
- * bathUPW = bathVolumeL * bathChanges
- * rinseUPW = rinseFlowRateLpm * rinseTimeMin * rinseCycles
- * totalBatchUPW = bathUPW + rinseUPW
- * perWaferUPW = totalBatchUPW / batchSize
+ * UPW (세정/린스 독립 계산):
+ *   cleaningUPW(bath) = bathVolumeL × bathChanges
+ *   rinseUPW = rinseFlowRateLpm × rinseTimeMin × rinseCycles
+ *   totalBatchUPW = cleaningUPW + rinseUPW,  perWaferUPW = total / batchSize
  */
+
+/** Cleaning Engine (batch) — bath 침적 조건이 세정 단계에 반영된다 */
+export function calculateCleaningStageBatch(
+  C_initial: number,
+  recipe: BatchRecipe,
+  params: BatchModelParameters,
+  temperatureC?: number,
+): StageRemovalResult {
+  const { R_floor, K_batch, bathVolumeRefPerWafer, alpha_bath } = params;
+  const volPerWafer = recipe.bathVolumeL / recipe.batchSize;
+  const bathFactor = Math.pow(Math.max(0.2, volPerWafer / bathVolumeRefPerWafer), alpha_bath);
+  const exposure =
+    K_batch * temperatureFactor(temperatureC ?? 20) * recipe.processTimeMin * bathFactor;
+  const delta = Math.max(0, C_initial - R_floor);
+  const cOut = R_floor + delta * Math.exp(-exposure);
+  return { cIn: C_initial, cOut, efficiency: 1 - Math.exp(-exposure), exposure };
+}
+
+/** Rinse Engine (batch) — 세정 후 잔류 오염을 입력으로 사용한다 */
+export function calculateRinseStageBatch(
+  C_clean: number,
+  recipe: BatchRecipe,
+  params: BatchModelParameters,
+  temperatureC?: number,
+): StageRemovalResult {
+  const { R_floor, K_batch, rinseFlowRefLpm, alpha_rinse, beta_cycle } = params;
+  const rinseDelivery =
+    (recipe.rinseFlowRateLpm * recipe.rinseTimeMin) / Math.max(1, rinseFlowRefLpm * 6.0);
+  const rinseFactor = Math.pow(Math.max(0.2, rinseDelivery), alpha_rinse);
+  const cycleFactor = Math.pow(Math.max(1, recipe.rinseCycles), beta_cycle);
+  const exposure =
+    K_batch *
+    temperatureFactor(temperatureC ?? 20) *
+    recipe.rinseTimeMin *
+    rinseFactor *
+    cycleFactor;
+  const delta = Math.max(0, C_clean - R_floor);
+  const cOut = R_floor + delta * Math.exp(-exposure);
+  return { cIn: C_clean, cOut, efficiency: 1 - Math.exp(-exposure), exposure };
+}
+
 export function calculateBatchResidual(
   R_initial: number,
   recipe: BatchRecipe,
   params: BatchModelParameters,
+  temperatureC?: number,
 ): number {
   const validation = validateBatchSize(recipe.batchSize);
   if (!validation.valid) {
     throw new Error(`[PureFlow Validation Error] ${validation.message || "Invalid Batch Size"}`);
   }
 
-  const {
-    R_floor,
-    K_batch,
-    bathVolumeRefPerWafer,
-    rinseFlowRefLpm,
-    alpha_bath,
-    alpha_rinse,
-    beta_cycle,
-  } = params;
-
-  const effectiveProcessTime = recipe.processTimeMin + recipe.rinseTimeMin;
-
-  // Volume of bath per wafer compared to reference volume
-  const volPerWafer = recipe.bathVolumeL / recipe.batchSize;
-  const bathFactor = Math.pow(Math.max(0.2, volPerWafer / bathVolumeRefPerWafer), alpha_bath);
-
-  // Rinse water delivery ratio
-  const rinseDelivery =
-    (recipe.rinseFlowRateLpm * recipe.rinseTimeMin) / Math.max(1, rinseFlowRefLpm * 6.0);
-  const rinseFactor = Math.pow(Math.max(0.2, rinseDelivery), alpha_rinse);
-
-  // Cycle factor
-  const cycleFactor = Math.pow(Math.max(1, recipe.rinseCycles), beta_cycle);
-
-  // Total exponential decay
-  const exponent = -K_batch * effectiveProcessTime * bathFactor * rinseFactor * cycleFactor;
-  const delta = Math.max(0, R_initial - R_floor);
-
-  const R_pred = R_floor + delta * Math.exp(exponent);
-  return R_pred;
+  const cleaned = calculateCleaningStageBatch(R_initial, recipe, params, temperatureC);
+  return calculateRinseStageBatch(cleaned.cOut, recipe, params, temperatureC).cOut;
 }
 
 export function calculateBatchUPW(recipe: BatchRecipe): {
@@ -184,19 +268,98 @@ export function generateAndEvaluateCandidates(process: ProcessDefinition): Proce
 
 /**
  * Single Wafer Evaluation Handler
+ *
+ * 순차 계산 디버그 객체 (스펙 19절):
+ * initialContamination → cleaning → rinse → final → gate → UPW 분리
  */
+export interface ConditionEvaluation {
+  initialContamination: number;
+  cleaningEfficiency: number;
+  contaminationAfterCleaning: number;
+  rinseEfficiency: number;
+  finalContamination: number;
+  cleaningUPW: number;
+  rinseUPW: number;
+  totalUPW: number;
+  qualityLimit: number;
+  qualityGate: boolean;
+}
+
+function evaluateSingleCondition(
+  initialContamination: number,
+  recipe: SingleWaferRecipe,
+  params: SingleWaferModelParameters,
+  allowableLimit: number,
+  temperatureC?: number,
+): ConditionEvaluation {
+  const cleaning = calculateCleaningStageSingle(initialContamination, recipe, params, temperatureC);
+  const rinse = calculateRinseStageSingle(cleaning.cOut, recipe, params, temperatureC);
+  const upw = calculateSingleWaferUPWBreakdown(recipe);
+  const finalContamination = rinse.cOut;
+  return {
+    initialContamination,
+    cleaningEfficiency: Number(cleaning.efficiency.toFixed(4)),
+    contaminationAfterCleaning: cleaning.cOut,
+    rinseEfficiency: Number(rinse.efficiency.toFixed(4)),
+    finalContamination,
+    cleaningUPW: upw.cleaningUPW,
+    rinseUPW: upw.rinseUPW,
+    totalUPW: upw.totalUPW,
+    qualityLimit: allowableLimit,
+    qualityGate: finalContamination <= allowableLimit,
+  };
+}
+
+function evaluateBatchCondition(
+  initialContamination: number,
+  recipe: BatchRecipe,
+  params: BatchModelParameters,
+  allowableLimit: number,
+  temperatureC?: number,
+): ConditionEvaluation {
+  const cleaning = calculateCleaningStageBatch(initialContamination, recipe, params, temperatureC);
+  const rinse = calculateRinseStageBatch(cleaning.cOut, recipe, params, temperatureC);
+  const { totalBatchUPW, perWaferUPW } = calculateBatchUPW(recipe);
+  const bathUPW = Number((recipe.bathVolumeL * recipe.bathChanges).toFixed(1));
+  const rinseUPW = Number((totalBatchUPW - bathUPW).toFixed(1));
+  const finalContamination = rinse.cOut;
+  return {
+    initialContamination,
+    cleaningEfficiency: Number(cleaning.efficiency.toFixed(4)),
+    contaminationAfterCleaning: cleaning.cOut,
+    rinseEfficiency: Number(rinse.efficiency.toFixed(4)),
+    finalContamination,
+    cleaningUPW: bathUPW,
+    rinseUPW,
+    totalUPW: totalBatchUPW,
+    qualityLimit: allowableLimit,
+    qualityGate: finalContamination <= allowableLimit,
+  };
+}
+
 function evaluateSingleWaferProcess(process: ProcessDefinition): ProcessResult {
   const recipe = process.singleRecipe!;
   const params = process.singleModelParams!;
   const { initialContamination, qualityMetric } = process;
   const allowableLimit = qualityMetric.allowableLimit;
+  const temperatureC = process.simulationTemperatureC;
 
-  const baselineUPW = calculateSingleWaferUPW(recipe);
-  const baselineResidual = calculateSingleWaferResidual(initialContamination, recipe, params);
+  // 고오염(정규화 점수 ≥ 90) 공정은 최소 세정시간을 유지한다 (최적화에서 세정시간 축소 금지)
+  const lockCleaningTime = process.contaminationScore >= 90;
+
+  const baselineEval = evaluateSingleCondition(
+    initialContamination,
+    recipe,
+    params,
+    allowableLimit,
+    temperatureC,
+  );
+  const baselineUPW = baselineEval.totalUPW;
+  const baselineResidual = baselineEval.finalContamination;
 
   const candidatesMap = new Map<string, CandidateCondition>();
 
-  // 1. Baseline Candidate
+  // 1. Baseline Candidate (사용자 현재 입력 조건 그대로)
   const baselineCandidate: CandidateCondition = {
     id: `cand-${process.id}-baseline`,
     cleaningMode: "single",
@@ -205,18 +368,23 @@ function evaluateSingleWaferProcess(process: ProcessDefinition): ProcessResult {
     flowRateLpm: recipe.flowRateLpm,
     spinRpm: recipe.spinRpm,
     cycles: recipe.rinseCycles,
-    upwUsageLiters: baselineUPW,
-    perWaferUPW: baselineUPW,
-    predictedResidual: baselineResidual,
+    upwUsageLiters: baselineEval.totalUPW,
+    perWaferUPW: baselineEval.totalUPW,
+    predictedResidual: baselineEval.finalContamination,
     allowableLimit,
-    qualityPass: baselineResidual <= allowableLimit,
+    qualityPass: baselineEval.qualityGate,
     savingsLiters: 0,
     savingsPercent: 0,
-    conditionSummary: `${recipe.flowRateLpm} L/min • ${recipe.rinseTimeMin}m 린스 • ${recipe.spinRpm} RPM`,
+    conditionSummary: `${recipe.flowRateLpm} L/min • 세정 ${recipe.cleaningTimeMin}m • 린스 ${recipe.rinseTimeMin}m × ${recipe.rinseCycles} • ${recipe.spinRpm} RPM`,
+    cleaningUPW: baselineEval.cleaningUPW,
+    rinseUPW: baselineEval.rinseUPW,
+    cleaningEfficiency: baselineEval.cleaningEfficiency,
+    rinseEfficiency: baselineEval.rinseEfficiency,
+    contaminationAfterCleaning: baselineEval.contaminationAfterCleaning,
   };
   candidatesMap.set(`base`, baselineCandidate);
 
-  // Single Wafer variations
+  // Single Wafer variations — 세정 조건과 린스 조건을 동시에 탐색
   const flowSteps = [
     recipe.flowRateLpm,
     recipe.flowRateLpm * 0.9,
@@ -224,61 +392,79 @@ function evaluateSingleWaferProcess(process: ProcessDefinition): ProcessResult {
     recipe.flowRateLpm * 0.7,
     recipe.flowRateLpm * 0.6,
   ];
-  const timeSteps = [
+  const rinseTimeSteps = [
     recipe.rinseTimeMin,
     recipe.rinseTimeMin * 0.9,
     recipe.rinseTimeMin * 0.8,
     recipe.rinseTimeMin * 0.65,
   ];
+  const cleaningTimeSteps = lockCleaningTime
+    ? [recipe.cleaningTimeMin]
+    : [recipe.cleaningTimeMin, recipe.cleaningTimeMin * 0.9, recipe.cleaningTimeMin * 0.8];
   const rpmSteps = [recipe.spinRpm, recipe.spinRpm * 1.1, recipe.spinRpm * 0.9];
 
   flowSteps.forEach((flow) => {
     const q = Number(flow.toFixed(1));
-    timeSteps.forEach((time) => {
-      const t = Number(time.toFixed(1));
-      rpmSteps.forEach((rpm) => {
-        const r = Math.round(rpm / 50) * 50;
-        const key = `${q}-${t}-${r}`;
-        if (!candidatesMap.has(key)) {
-          const testRecipe: SingleWaferRecipe = {
-            cleaningTimeMin: recipe.cleaningTimeMin,
-            rinseTimeMin: t,
-            flowRateLpm: q,
-            spinRpm: r,
-            rinseCycles: recipe.rinseCycles,
-          };
+    cleaningTimeSteps.forEach((cTime) => {
+      const tc = Number(cTime.toFixed(1));
+      rinseTimeSteps.forEach((time) => {
+        const t = Number(time.toFixed(1));
+        rpmSteps.forEach((rpm) => {
+          const r = Math.round(rpm / 50) * 50;
+          const key = `${q}-${tc}-${t}-${r}`;
+          if (!candidatesMap.has(key)) {
+            const testRecipe: SingleWaferRecipe = {
+              cleaningTimeMin: tc,
+              rinseTimeMin: t,
+              flowRateLpm: q,
+              spinRpm: r,
+              rinseCycles: recipe.rinseCycles,
+            };
 
-          const upw = calculateSingleWaferUPW(testRecipe);
-          const predicted = calculateSingleWaferResidual(initialContamination, testRecipe, params);
-          const pass = predicted <= allowableLimit;
-          const savingsLiters = Number((baselineUPW - upw).toFixed(1));
-          const savingsPercent =
-            baselineUPW > 0 ? Number(((savingsLiters / baselineUPW) * 100).toFixed(1)) : 0;
+            const evaluation = evaluateSingleCondition(
+              initialContamination,
+              testRecipe,
+              params,
+              allowableLimit,
+              temperatureC,
+            );
+            const upw = evaluation.totalUPW;
+            const predicted = evaluation.finalContamination;
+            const pass = evaluation.qualityGate;
+            const savingsLiters = Number((baselineUPW - upw).toFixed(1));
+            const savingsPercent =
+              baselineUPW > 0 ? Number(((savingsLiters / baselineUPW) * 100).toFixed(1)) : 0;
 
-          let rejectionReason: string | undefined;
-          if (!pass) {
-            rejectionReason = `잔류 오염(${formatContaminationValue(predicted, qualityMetric.unit)})이 허용 기준(${formatThreshold(allowableLimit, qualityMetric.unit)})을 초과하여 탈락`;
+            let rejectionReason: string | undefined;
+            if (!pass) {
+              rejectionReason = `잔류 오염(${formatContaminationValue(predicted, qualityMetric.unit)})이 허용 기준(${formatThreshold(allowableLimit, qualityMetric.unit)})을 초과하여 탈락`;
+            }
+
+            candidatesMap.set(key, {
+              id: `cand-${process.id}-${key}`,
+              cleaningMode: "single",
+              cleaningTimeMin: tc,
+              rinseTimeMin: t,
+              flowRateLpm: q,
+              spinRpm: r,
+              cycles: recipe.rinseCycles,
+              upwUsageLiters: upw,
+              perWaferUPW: upw,
+              predictedResidual: predicted,
+              allowableLimit,
+              qualityPass: pass,
+              savingsLiters,
+              savingsPercent,
+              rejectionReason,
+              conditionSummary: `${q} L/min • 세정 ${tc}m • 린스 ${t}m × ${recipe.rinseCycles} • ${r} RPM`,
+              cleaningUPW: evaluation.cleaningUPW,
+              rinseUPW: evaluation.rinseUPW,
+              cleaningEfficiency: evaluation.cleaningEfficiency,
+              rinseEfficiency: evaluation.rinseEfficiency,
+              contaminationAfterCleaning: evaluation.contaminationAfterCleaning,
+            });
           }
-
-          candidatesMap.set(key, {
-            id: `cand-${process.id}-${key}`,
-            cleaningMode: "single",
-            cleaningTimeMin: recipe.cleaningTimeMin,
-            rinseTimeMin: t,
-            flowRateLpm: q,
-            spinRpm: r,
-            cycles: recipe.rinseCycles,
-            upwUsageLiters: upw,
-            perWaferUPW: upw,
-            predictedResidual: predicted,
-            allowableLimit,
-            qualityPass: pass,
-            savingsLiters,
-            savingsPercent,
-            rejectionReason,
-            conditionSummary: `${q} L/min • ${t}m 린스 • ${r} RPM`,
-          });
-        }
+        });
       });
     });
   });
@@ -433,6 +619,10 @@ function evaluateBatchProcess(process: ProcessDefinition): ProcessResult {
   const fixedBatchSize = rawBatchSize as number;
   const recipe = process.batchRecipe!;
   const params = process.batchModelParams!;
+  const temperatureC = process.simulationTemperatureC;
+
+  // 고오염(정규화 점수 ≥ 90) 공정은 최소 세정시간(침적시간)을 유지한다
+  const lockCleaningTime = process.contaminationScore >= 90;
 
   // Baseline with user fixed batchSize
   const baselineRecipe: BatchRecipe = {
@@ -440,13 +630,20 @@ function evaluateBatchProcess(process: ProcessDefinition): ProcessResult {
     batchSize: fixedBatchSize,
   };
 
-  const { totalBatchUPW: baselineUPW, perWaferUPW: baselinePerWafer } =
-    calculateBatchUPW(baselineRecipe);
-  const baselineResidual = calculateBatchResidual(initialContamination, baselineRecipe, params);
+  const baselineEval = evaluateBatchCondition(
+    initialContamination,
+    baselineRecipe,
+    params,
+    allowableLimit,
+    temperatureC,
+  );
+  const baselineUPW = baselineEval.totalUPW;
+  const baselinePerWafer = baselineUPW / fixedBatchSize;
+  const baselineResidual = baselineEval.finalContamination;
 
   const candidatesMap = new Map<string, CandidateCondition>();
 
-  // 1. Baseline Candidate (Fixed user Batch Size)
+  // 1. Baseline Candidate (사용자 현재 입력 조건 그대로, Fixed user Batch Size)
   const baselineCandidate: CandidateCondition = {
     id: `cand-${process.id}-baseline`,
     cleaningMode: "batch",
@@ -457,23 +654,35 @@ function evaluateBatchProcess(process: ProcessDefinition): ProcessResult {
     rinseTimeMin: baselineRecipe.rinseTimeMin,
     rinseFlowRateLpm: baselineRecipe.rinseFlowRateLpm,
     cycles: baselineRecipe.rinseCycles,
-    upwUsageLiters: baselineUPW,
+    upwUsageLiters: baselineEval.totalUPW,
     perWaferUPW: baselinePerWafer,
-    predictedResidual: baselineResidual,
+    predictedResidual: baselineEval.finalContamination,
     allowableLimit,
-    qualityPass: baselineResidual <= allowableLimit,
+    qualityPass: baselineEval.qualityGate,
     savingsLiters: 0,
     savingsPercent: 0,
-    conditionSummary: `배치 ${fixedBatchSize}매 • Bath ${baselineRecipe.bathVolumeL}L • 린스 ${baselineRecipe.rinseFlowRateLpm}Lpm (${baselineRecipe.rinseTimeMin}m)`,
+    conditionSummary: `배치 ${fixedBatchSize}매 • Bath ${baselineRecipe.bathVolumeL}L • 침적 ${baselineRecipe.processTimeMin}m • 린스 ${baselineRecipe.rinseFlowRateLpm}Lpm (${baselineRecipe.rinseTimeMin}m × ${baselineRecipe.rinseCycles})`,
+    cleaningUPW: baselineEval.cleaningUPW,
+    rinseUPW: baselineEval.rinseUPW,
+    cleaningEfficiency: baselineEval.cleaningEfficiency,
+    rinseEfficiency: baselineEval.rinseEfficiency,
+    contaminationAfterCleaning: baselineEval.contaminationAfterCleaning,
   };
   candidatesMap.set("base", baselineCandidate);
 
-  // Batch exploration variations - Keeping batchSize FIXED to user input
+  // Batch exploration variations — 세정(침적) 조건과 린스 조건을 동시에 탐색, batchSize FIXED
   const bathVolumes = [
     baselineRecipe.bathVolumeL,
     Math.round(baselineRecipe.bathVolumeL * 0.9),
     Math.round(baselineRecipe.bathVolumeL * 0.8),
   ];
+  const processTimes = lockCleaningTime
+    ? [baselineRecipe.processTimeMin]
+    : [
+        baselineRecipe.processTimeMin,
+        Number((baselineRecipe.processTimeMin * 0.9).toFixed(1)),
+        Number((baselineRecipe.processTimeMin * 0.8).toFixed(1)),
+      ];
   const rinseFlows = [
     baselineRecipe.rinseFlowRateLpm,
     baselineRecipe.rinseFlowRateLpm * 0.9,
@@ -489,55 +698,70 @@ function evaluateBatchProcess(process: ProcessDefinition): ProcessResult {
   ];
 
   bathVolumes.forEach((bathVol) => {
-    rinseFlows.forEach((rFlow) => {
-      const qRinse = Number(rFlow.toFixed(1));
-      rinseTimes.forEach((rTime) => {
-        const tRinse = Number(rTime.toFixed(1));
-        const key = `${fixedBatchSize}-${bathVol}-${qRinse}-${tRinse}`;
-        if (!candidatesMap.has(key)) {
-          const testRecipe: BatchRecipe = {
-            batchSize: fixedBatchSize,
-            bathVolumeL: bathVol,
-            bathChanges: baselineRecipe.bathChanges,
-            processTimeMin: baselineRecipe.processTimeMin,
-            rinseTimeMin: tRinse,
-            rinseFlowRateLpm: qRinse,
-            rinseCycles: baselineRecipe.rinseCycles,
-          };
+    processTimes.forEach((pTime) => {
+      const tProc = Number(pTime.toFixed(1));
+      rinseFlows.forEach((rFlow) => {
+        const qRinse = Number(rFlow.toFixed(1));
+        rinseTimes.forEach((rTime) => {
+          const tRinse = Number(rTime.toFixed(1));
+          const key = `${fixedBatchSize}-${bathVol}-${tProc}-${qRinse}-${tRinse}`;
+          if (!candidatesMap.has(key)) {
+            const testRecipe: BatchRecipe = {
+              batchSize: fixedBatchSize,
+              bathVolumeL: bathVol,
+              bathChanges: baselineRecipe.bathChanges,
+              processTimeMin: tProc,
+              rinseTimeMin: tRinse,
+              rinseFlowRateLpm: qRinse,
+              rinseCycles: baselineRecipe.rinseCycles,
+            };
 
-          const { totalBatchUPW: upw, perWaferUPW } = calculateBatchUPW(testRecipe);
-          const predicted = calculateBatchResidual(initialContamination, testRecipe, params);
-          const pass = predicted <= allowableLimit;
-          const savingsLiters = Number((baselineUPW - upw).toFixed(1));
-          const savingsPercent =
-            baselineUPW > 0 ? Number(((savingsLiters / baselineUPW) * 100).toFixed(1)) : 0;
+            const evaluation = evaluateBatchCondition(
+              initialContamination,
+              testRecipe,
+              params,
+              allowableLimit,
+              temperatureC,
+            );
+            const upw = evaluation.totalUPW;
+            const predicted = evaluation.finalContamination;
+            const pass = evaluation.qualityGate;
+            const savingsLiters = Number((baselineUPW - upw).toFixed(1));
+            const savingsPercent =
+              baselineUPW > 0 ? Number(((savingsLiters / baselineUPW) * 100).toFixed(1)) : 0;
 
-          let rejectionReason: string | undefined;
-          if (!pass) {
-            rejectionReason = `잔류 오염(${formatContaminationValue(predicted, qualityMetric.unit)})이 허용 기준(${formatThreshold(allowableLimit, qualityMetric.unit)})을 초과하여 탈락`;
+            let rejectionReason: string | undefined;
+            if (!pass) {
+              rejectionReason = `잔류 오염(${formatContaminationValue(predicted, qualityMetric.unit)})이 허용 기준(${formatThreshold(allowableLimit, qualityMetric.unit)})을 초과하여 탈락`;
+            }
+
+            candidatesMap.set(key, {
+              id: `cand-${process.id}-${key}`,
+              cleaningMode: "batch",
+              batchSize: fixedBatchSize,
+              bathVolumeL: bathVol,
+              bathChanges: baselineRecipe.bathChanges,
+              processTimeMin: tProc,
+              rinseTimeMin: tRinse,
+              rinseFlowRateLpm: qRinse,
+              cycles: baselineRecipe.rinseCycles,
+              upwUsageLiters: upw,
+              perWaferUPW: upw / fixedBatchSize,
+              predictedResidual: predicted,
+              allowableLimit,
+              qualityPass: pass,
+              savingsLiters,
+              savingsPercent,
+              rejectionReason,
+              conditionSummary: `배치 ${fixedBatchSize}매 • Bath ${bathVol}L • 침적 ${tProc}m • 린스 ${qRinse}Lpm (${tRinse}m × ${baselineRecipe.rinseCycles})`,
+              cleaningUPW: evaluation.cleaningUPW,
+              rinseUPW: evaluation.rinseUPW,
+              cleaningEfficiency: evaluation.cleaningEfficiency,
+              rinseEfficiency: evaluation.rinseEfficiency,
+              contaminationAfterCleaning: evaluation.contaminationAfterCleaning,
+            });
           }
-
-          candidatesMap.set(key, {
-            id: `cand-${process.id}-${key}`,
-            cleaningMode: "batch",
-            batchSize: fixedBatchSize,
-            bathVolumeL: bathVol,
-            bathChanges: baselineRecipe.bathChanges,
-            processTimeMin: baselineRecipe.processTimeMin,
-            rinseTimeMin: tRinse,
-            rinseFlowRateLpm: qRinse,
-            cycles: baselineRecipe.rinseCycles,
-            upwUsageLiters: upw,
-            perWaferUPW,
-            predictedResidual: predicted,
-            allowableLimit,
-            qualityPass: pass,
-            savingsLiters,
-            savingsPercent,
-            rejectionReason,
-            conditionSummary: `배치 ${fixedBatchSize}매 • Bath ${bathVol}L • 린스 ${qRinse}Lpm (${tRinse}m)`,
-          });
-        }
+        });
       });
     });
   });
