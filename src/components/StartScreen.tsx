@@ -224,17 +224,17 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                       }`}
                     >
                       <div className="flex items-center justify-between w-full mb-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-xs font-bold text-[#071A2E]">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-base font-bold text-[#071A2E]">
                           {cat.stepNumber}
                         </span>
                         {getProcessIcon(cat.id, isSelected)}
                       </div>
 
                       <div className="w-full">
-                        <span className="text-sm font-black text-[#071A2E] truncate block">
+                        <span className="text-base font-black text-[#071A2E] truncate block">
                           {cat.name}
                         </span>
-                        <span className="text-[11px] text-[#64748B] block truncate font-mono mt-0.5">
+                        <span className="text-xs text-[#64748B] block truncate font-mono mt-0.5">
                           {cat.nameEn}
                         </span>
                       </div>
@@ -261,20 +261,20 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               </div>
 
               {/* Dynamic Step Selection & Process Detail Panel */}
-              <div className="mt-5 rounded-2xl bg-white border border-[#E2E8F0] p-5 text-xs space-y-4">
+              <div className="mt-5 rounded-2xl bg-white border border-[#E2E8F0] p-5 text-sm space-y-4">
                 {currentCategory.optimizationEnabled && currentStep ? (
                   <>
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#F1F5F9]">
                       <div className="flex items-center gap-2.5">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#071A2E] text-[#00C2FF] text-xs font-bold">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#071A2E] text-[#00C2FF] text-base font-bold">
                           {currentCategory.stepNumber}
                         </span>
                         <div>
-                          <span className="text-sm font-black text-[#071A2E]">
+                          <span className="text-base font-black text-[#071A2E]">
                             현재 선택 공정: {currentCategory.name} ({currentCategory.nameEn})
                           </span>
-                          <p className="text-[11px] text-[#64748B] mt-0.5">
+                          <p className="text-[13px] text-[#64748B] mt-0.5">
                             {currentCategory.shortDesc}
                           </p>
                         </div>
