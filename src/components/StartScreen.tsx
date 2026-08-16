@@ -127,7 +127,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               className="inline-flex items-center gap-1.5 rounded-full border border-[#CBD5E1] bg-white px-4 py-1.5 text-xs font-bold text-[#071A2E] hover:border-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors shadow-xs cursor-pointer"
             >
               <Settings className="h-3.5 w-3.5 text-[#00C2FF]" />
-              <span>⚙ 환경 설정</span>
+              <span>환경 설정</span>
               <span className="rounded bg-slate-100 text-[10px] text-[#64748B] px-1.5 py-0.2">
                 {cleaningMode === "single" ? "매엽식" : `배치식 (${batchSize || 50}매)`}
               </span>
