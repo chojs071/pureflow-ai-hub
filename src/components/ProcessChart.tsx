@@ -25,16 +25,19 @@ export const ProcessChart: React.FC<ProcessChartProps> = ({ completedResults }) 
     );
   }
 
-  const chartData = completedResults.map((r, index) => ({
-    name: `Step ${index + 1}`,
-    fullName: r.process.name,
-    baselineUPW: r.baselineUPW,
-    recommendedUPW: r.recommendedUPW,
-    savingsLiters: r.savingsLiters,
+  const chartData = completedResults.map((r) => ({
+    name: `${r.process.stepNumber}. ${r.process.categoryName}`,
+    fullName: r.process.categoryName,
+    stepNumber: r.process.stepNumber,
+    isExcluded: !r.process.optimizationEnabled,
+    baselineUPW: r.process.optimizationEnabled ? r.baselineUPW : 0,
+    recommendedUPW: r.process.optimizationEnabled ? r.recommendedUPW : 0,
+    savingsLiters: r.process.optimizationEnabled ? r.savingsLiters : 0,
   }));
 
-  const totalBaseline = completedResults.reduce((acc, r) => acc + r.baselineUPW, 0);
-  const totalAI = completedResults.reduce((acc, r) => acc + r.recommendedUPW, 0);
+  const enabledResults = completedResults.filter((r) => r.process.optimizationEnabled);
+  const totalBaseline = enabledResults.reduce((acc, r) => acc + r.baselineUPW, 0);
+  const totalAI = enabledResults.reduce((acc, r) => acc + r.recommendedUPW, 0);
   const totalSavings = totalBaseline - totalAI;
   const savingsRate = totalBaseline > 0 ? ((totalSavings / totalBaseline) * 100).toFixed(1) : "0";
 
@@ -47,10 +50,10 @@ export const ProcessChart: React.FC<ProcessChartProps> = ({ completedResults }) 
           </div>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#071A2E]">
-              공정별 UPW 사용량 비교 현황
+              8대 공정별 UPW 사용량 비교 현황
             </h3>
             <span className="text-[11px] text-[#64748B]">
-              완료된 {completedResults.length}개 공정 실시간 누적
+              완료된 {completedResults.length}개 공정 실시간 비교 (EDS 최적화 제외)
             </span>
           </div>
         </div>
@@ -63,16 +66,19 @@ export const ProcessChart: React.FC<ProcessChartProps> = ({ completedResults }) 
         </div>
       </div>
 
-      <div className="h-56 w-full pt-2">
+      <div className="h-64 w-full pt-2">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
             <XAxis
               dataKey="name"
               stroke="#64748B"
-              fontSize={11}
+              fontSize={10}
               tickLine={false}
               axisLine={{ stroke: "#E2E8F0" }}
+              angle={-20}
+              textAnchor="end"
+              interval={0}
             />
             <YAxis
               stroke="#64748B"
@@ -85,10 +91,23 @@ export const ProcessChart: React.FC<ProcessChartProps> = ({ completedResults }) 
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
+                  if (data.isExcluded) {
+                    return (
+                      <div className="rounded-xl border border-amber-300 bg-amber-900 text-white p-3 text-xs shadow-xl space-y-1">
+                        <div className="font-bold text-amber-200 border-b border-white/10 pb-1">
+                          {data.name}
+                        </div>
+                        <p className="text-amber-100 text-[11px]">
+                          전기적 특성 검사 공정으로 UPW 세정 최적화 대상에서 제외됩니다.
+                        </p>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div className="rounded-xl border border-[#E2E8F0] bg-[#071A2E] text-white p-3 text-xs shadow-xl space-y-1.5">
                       <div className="font-bold text-[#00C2FF] border-b border-white/10 pb-1">
-                        {data.fullName} ({label})
+                        {data.name}
                       </div>
                       <div className="flex justify-between gap-4 text-white/80">
                         <span>기존 UPW:</span>

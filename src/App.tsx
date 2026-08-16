@@ -1,8 +1,17 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, ProcessResult, WaferDiameter } from "./types";
-import { PROCESS_DATASETS } from "./data/processes";
+import {
+  AppState,
+  ProcessResult,
+  WaferConfig,
+  WaferDiameterInch,
+  WaferType,
+  CleaningMode,
+  ProcessCategoryId,
+} from "./types";
+import { buildProcessPipeline } from "./data/processes";
 import { generateAndEvaluateCandidates } from "./utils/model";
+import { validateBatchSize } from "./utils/validation";
 import { Header } from "./components/Header";
 import { StartScreen } from "./components/StartScreen";
 import { ProcessProgress } from "./components/ProcessProgress";
@@ -13,25 +22,41 @@ import { FinalDashboard } from "./components/FinalDashboard";
 import { FormulaModal } from "./components/FormulaModal";
 import { ArrowRight, Sparkles, ChevronRight, Play, Pause, Zap } from "lucide-react";
 
-const AUTO_ADVANCE_DURATION_MS = 3800; // 3.8 seconds per process card view
+const AUTO_ADVANCE_DURATION_MS = 3800; // 3.8 seconds per process view
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>("START");
-  const [selectedWafer, setSelectedWafer] = useState<WaferDiameter | null>("300mm");
+  const [cleaningMode, setCleaningMode] = useState<CleaningMode>("single");
+  const [batchSize, setBatchSize] = useState<number | undefined>(50);
+  const [wafer, setWafer] = useState<WaferConfig>({
+    diameterInch: 12,
+    diameterMm: 304.8,
+    waferType: "polished",
+  });
+  const [selectedCategoryId, setSelectedCategoryId] = useState<ProcessCategoryId>("etching");
+  const [selectedSteps, setSelectedSteps] = useState<Record<ProcessCategoryId, string>>({
+    "wafer-mfg": "wafer-pre-clean",
+    oxidation: "rca-sc1-rinse",
+    photo: "post-dev-rinse",
+    etching: "post-etch-clean",
+    deposition: "pre-dep-clean",
+    metal: "cu-post-cmp",
+    eds: "eds-probe-step",
+    packaging: "pkg-pre-bonding",
+  });
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [isFormulaOpen, setIsFormulaOpen] = useState<boolean>(false);
 
   // Auto-advance states
   const [isAutoPlay, setIsAutoPlay] = useState<boolean>(true);
-  const [autoProgress, setAutoProgress] = useState<number>(0); // 0 to 100%
+  const [autoProgress, setAutoProgress] = useState<number>(0);
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Results for each completed/active step
   const activeProcesses = useMemo(() => {
-    if (!selectedWafer) return [];
-    return PROCESS_DATASETS[selectedWafer];
-  }, [selectedWafer]);
+    return buildProcessPipeline(cleaningMode, wafer, selectedSteps, batchSize);
+  }, [cleaningMode, wafer, selectedSteps, batchSize]);
 
   // Precompute evaluated results for all processes
   const evaluatedResults: ProcessResult[] = useMemo(() => {
@@ -52,7 +77,6 @@ export default function App() {
 
   // Handler: Move to next process step
   const handleNextStep = () => {
-    // Clear existing auto timers
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     setAutoProgress(0);
@@ -61,18 +85,51 @@ export default function App() {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
     } else {
-      // Reached final step
       setAppState("FINAL_RESULT");
     }
   };
 
   // Handler: Start optimization
   const handleStartOptimization = () => {
-    if (!selectedWafer) return;
-    setCurrentStepIndex(0);
+    // Strict Guard: If in batch mode, validate batchSize before launching AI optimization
+    if (cleaningMode === "batch" && !validateBatchSize(batchSize)) {
+      console.warn(
+        "[PureFlow Guard] Blocked AI optimization execution due to invalid Batch Size:",
+        batchSize,
+      );
+      return;
+    }
+
+    const catIndex = activeProcesses.findIndex((p) => p.id === selectedCategoryId);
+    setCurrentStepIndex(catIndex >= 0 ? catIndex : 0);
     setIsAutoPlay(true);
     setAutoProgress(0);
     setAppState("PROCESS_ACTIVE");
+  };
+
+  // Handler for step selection inside a category
+  const handleSelectStepId = (stepId: string) => {
+    setSelectedSteps((prev) => ({
+      ...prev,
+      [selectedCategoryId]: stepId,
+    }));
+  };
+
+  // Handler for Wafer Diameter change
+  const handleSelectWaferDiameter = (diameterInch: WaferDiameterInch, diameterMm: number) => {
+    setWafer((prev) => ({
+      ...prev,
+      diameterInch,
+      diameterMm,
+    }));
+  };
+
+  // Handler for Wafer Type change
+  const handleSelectWaferType = (waferType: WaferType) => {
+    setWafer((prev) => ({
+      ...prev,
+      waferType,
+    }));
   };
 
   // Auto-advance timer logic while viewing process
@@ -81,14 +138,12 @@ export default function App() {
       setAutoProgress(0);
       const startTime = Date.now();
 
-      // Interval for smooth countdown bar
       progressIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - startTime;
         const pct = Math.min(100, (elapsed / AUTO_ADVANCE_DURATION_MS) * 100);
         setAutoProgress(pct);
       }, 50);
 
-      // Timeout to advance to next step
       autoTimerRef.current = setTimeout(() => {
         handleNextStep();
       }, AUTO_ADVANCE_DURATION_MS);
@@ -115,16 +170,15 @@ export default function App() {
     setAutoProgress(0);
   };
 
-  // Handler: Switch wafer diameter and re-run
-  const handleSwitchWafer = (diameter: WaferDiameter) => {
-    setSelectedWafer(diameter);
+  // Handler: Switch cleaning mode and re-run
+  const handleSwitchMode = (mode: CleaningMode) => {
+    setCleaningMode(mode);
     setCurrentStepIndex(0);
     setIsAutoPlay(true);
     setAutoProgress(0);
     setAppState("PROCESS_ACTIVE");
   };
 
-  // Seconds remaining calculation
   const secondsRemaining = Math.max(
     0,
     (AUTO_ADVANCE_DURATION_MS * (1 - autoProgress / 100)) / 1000,
@@ -134,7 +188,9 @@ export default function App() {
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans selection:bg-[#00C2FF]/20 selection:text-[#071A2E]">
       {/* Header */}
       <Header
-        waferDiameter={appState !== "START" ? selectedWafer : null}
+        wafer={appState !== "START" ? wafer : null}
+        cleaningMode={cleaningMode}
+        batchSize={batchSize}
         onReset={handleReset}
         onOpenFormula={() => setIsFormulaOpen(true)}
         currentStep={currentStepIndex + 1}
@@ -154,9 +210,18 @@ export default function App() {
               transition={{ duration: 0.2 }}
             >
               <StartScreen
-                selectedWafer={selectedWafer}
-                onSelectWafer={(d) => setSelectedWafer(d)}
-                onStartOptimization={handleStartOptimization}
+                cleaningMode={cleaningMode}
+                onSelectCleaningMode={(mode) => setCleaningMode(mode)}
+                batchSize={batchSize}
+                onSelectBatchSize={setBatchSize}
+                wafer={wafer}
+                onSelectWaferDiameter={handleSelectWaferDiameter}
+                onSelectWaferType={handleSelectWaferType}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategoryId={(id) => setSelectedCategoryId(id)}
+                selectedStepId={selectedSteps[selectedCategoryId] || ""}
+                onSelectStepId={handleSelectStepId}
+                onStart={handleStartOptimization}
                 onOpenFormula={() => setIsFormulaOpen(true)}
               />
             </motion.div>
@@ -165,7 +230,7 @@ export default function App() {
           {/* 2. PROCESS ACTIVE VIEW */}
           {appState === "PROCESS_ACTIVE" && currentResult && (
             <motion.div
-              key={`process-${currentStepIndex}`}
+              key={`process-${cleaningMode}-${wafer.diameterInch}-${wafer.waferType}-${currentStepIndex}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -183,15 +248,17 @@ export default function App() {
                 }}
               />
 
-              {/* Main 2-Column Responsive Layout (Desktop 1440/1280/1024) */}
+              {/* Main 2-Column Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 {/* Left / Center Column: Current Process Card & Candidates (7 cols) */}
                 <div className="lg:col-span-7 space-y-6">
                   <CurrentProcessCard result={currentResult} />
-                  <CandidateTable
-                    candidates={currentResult.allCandidates}
-                    allowableCu={currentResult.process.allowableCuAtomsCm2}
-                  />
+                  {currentResult.process.optimizationEnabled && (
+                    <CandidateTable
+                      candidates={currentResult.allCandidates}
+                      qualityMetric={currentResult.process.qualityMetric}
+                    />
+                  )}
                 </div>
 
                 {/* Right Column: Dynamic Process Comparison Chart & Next Action (5 cols) */}
@@ -199,16 +266,17 @@ export default function App() {
                   <ProcessChart completedResults={completedResults} />
 
                   {/* Step Action Card with Auto-Advance Controls */}
-                  <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs space-y-4">
-                    {/* Header with Step indicator & Auto-play toggle */}
+                  <div className="rounded-3xl border border-[#E2E8F0] bg-white p-5 sm:p-6 shadow-xs space-y-4">
+                    {/* Header with Step indicator */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="flex h-2 w-2 rounded-full bg-[#00C2FF] animate-pulse" />
+                        <span className="flex h-2.5 w-2.5 rounded-full bg-[#00C2FF] animate-pulse" />
                         <span className="text-xs font-bold text-[#071A2E]">
-                          자동 순차 공정 최적화 진행 중
+                          {cleaningMode === "single" ? "매엽식" : `배치식 (${batchSize || 50}매)`}{" "}
+                          공정 최적화 진행 중
                         </span>
                       </div>
-                      <span className="font-mono text-xs font-bold text-[#00C2FF] bg-[#00C2FF]/10 px-2 py-0.5 rounded-md border border-[#00C2FF]/20">
+                      <span className="font-mono text-xs font-bold text-[#00C2FF] bg-[#00C2FF]/10 px-2.5 py-1 rounded-md border border-[#00C2FF]/20">
                         Step {currentStepIndex + 1} / {activeProcesses.length}
                       </span>
                     </div>
@@ -216,9 +284,9 @@ export default function App() {
                     {/* Auto-Advance Progress Bar */}
                     {isAutoPlay && (
                       <div className="space-y-1.5">
-                        <div className="flex justify-between items-center text-[11px]">
+                        <div className="flex justify-between items-center text-xs">
                           <span className="text-[#64748B] flex items-center gap-1">
-                            <Zap className="h-3 w-3 text-[#00C2FF]" />
+                            <Zap className="h-3.5 w-3.5 text-[#00C2FF]" />
                             {currentStepIndex < activeProcesses.length - 1
                               ? "다음 공정 자동 이동"
                               : "최종 결과 대시보드 자동 전환"}
@@ -237,12 +305,12 @@ export default function App() {
                     )}
 
                     {/* Action Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pt-1">
                       {/* Play/Pause Toggle Button */}
                       <button
                         type="button"
                         onClick={() => setIsAutoPlay(!isAutoPlay)}
-                        className={`flex items-center justify-center gap-1.5 rounded-xl py-3 px-4 text-xs font-bold border transition-colors cursor-pointer ${
+                        className={`flex items-center justify-center gap-1.5 rounded-2xl py-3.5 px-4 text-xs font-bold border transition-colors cursor-pointer ${
                           isAutoPlay
                             ? "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0] hover:text-[#071A2E] hover:bg-slate-100"
                             : "bg-[#22C55E]/10 text-[#166534] border-[#22C55E]/30 hover:bg-[#22C55E]/20"
@@ -257,7 +325,7 @@ export default function App() {
                         ) : (
                           <>
                             <Play className="h-4 w-4 fill-current" />
-                            <span>자동진행 재개</span>
+                            <span>자동재개</span>
                           </>
                         )}
                       </button>
@@ -266,11 +334,11 @@ export default function App() {
                       <button
                         type="button"
                         onClick={handleNextStep}
-                        className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs font-bold bg-[#00C2FF] text-white hover:bg-[#00B0E8] shadow-md hover:shadow-lg transition-all active:scale-[0.99] cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-xs sm:text-sm font-bold bg-[#00C2FF] text-white hover:bg-[#00B0E8] shadow-md hover:shadow-lg transition-all active:scale-[0.99] cursor-pointer"
                       >
                         {currentStepIndex < activeProcesses.length - 1 ? (
                           <>
-                            <span>지금 바로 다음 공정으로</span>
+                            <span>다음 공정으로</span>
                             <ChevronRight className="h-4 w-4" />
                           </>
                         ) : (
@@ -304,11 +372,13 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               <FinalDashboard
-                waferDiameter={selectedWafer || "300mm"}
+                wafer={wafer}
+                cleaningMode={cleaningMode}
+                batchSize={batchSize}
                 results={evaluatedResults}
                 onRestart={handleReset}
                 onOpenFormula={() => setIsFormulaOpen(true)}
-                onChangeWafer={handleSwitchWafer}
+                onChangeMode={handleSwitchMode}
               />
             </motion.div>
           )}
