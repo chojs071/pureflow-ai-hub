@@ -143,7 +143,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           </p>
 
           {/* Current Active Simulation Condition Summary Pill */}
-          <div className="max-w-2xl mx-auto mb-8 flex items-center justify-between gap-4 p-5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-sm">
+          <div className="max-w-2xl mx-auto mb-8 flex items-center justify-between gap-4 p-5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-base">
             <div className="flex items-center gap-3 text-left">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#071A2E] text-[#00C2FF] shrink-0">
                 {cleaningMode === "single" ? (
@@ -161,7 +161,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                       : `배치식 (Batch, ${batchSize || 50} wafers)`}
                   </span>
                 </div>
-                <span className="text-[13px] text-[#64748B]">
+                <span className="text-sm text-[#64748B]">
                   {cleaningMode === "single"
                     ? `온도 ${simulationSettings?.single.temperatureC ?? 20}℃ · 유량 ${simulationSettings?.single.flowRateLpm ?? 10} L/min · 시간 ${simulationSettings?.single.cleaningTimeMin ?? 10} min`
                     : `온도 ${simulationSettings?.batch.temperatureC ?? 20}℃ · 공정시간 ${simulationSettings?.batch.processTimeMin ?? 10} min · 린스 ${simulationSettings?.batch.rinseTimeMin ?? 5} min`}
@@ -171,7 +171,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="text-sm font-bold text-[#00C2FF] hover:underline shrink-0 cursor-pointer flex items-center gap-1"
+              className="text-base font-bold text-[#00C2FF] hover:underline shrink-0 cursor-pointer flex items-center gap-1"
             >
               <span>조건 변경</span>
               <Settings className="h-4 w-4" />
