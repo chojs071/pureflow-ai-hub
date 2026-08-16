@@ -77,14 +77,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "PureFlow AI — AI 기반 초순수 최적화 시스템" },
+      {
+        name: "description",
+        content:
+          "세정 후 허용 잔류 오염 기준을 유지하면서 기존 초순수 사용량을 어디까지 줄일 수 있는지 판단합니다.",
+      },
+      { property: "og:title", content: "PureFlow AI — AI 기반 초순수 최적화 시스템" },
+      {
+        property: "og:description",
+        content: "품질은 유지하고, 불필요한 UPW 사용은 줄입니다.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -103,7 +108,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
-
   }),
   shellComponent: RootShell,
   component: RootComponent,
