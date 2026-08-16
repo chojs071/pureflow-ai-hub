@@ -284,7 +284,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-black text-[#071A2E]">
-                    ⚙ 환경 설정 (Simulation Settings)
+                    환경 설정 (Simulation Settings)
                   </h2>
                   <span className="inline-block rounded-md bg-[#00C2FF]/10 text-[#071A2E] border border-[#00C2FF]/30 px-2 py-0.5 text-[10px] font-bold">
                     MVP Simulation Default
