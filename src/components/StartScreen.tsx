@@ -180,7 +180,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           </div>
 
           {/* Main Core Selections Workflow:
-              1. 8대 공정 선택
+              1. 8대 공정 소개
               2. 웨이퍼 직경 선택 (2" ~ 12")
               3. 웨이퍼 종류 선택 (연마 / 에피 / SOI)
           */}
@@ -192,7 +192,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00C2FF] text-white text-[11px] font-bold">
                     1
                   </span>
-                  <span>반도체 8대 공정 선택 (SEMICONDUCTOR 8 MAJOR PROCESSES)</span>
+                  <span>반도체 8대 공정 소개 (SEMICONDUCTOR 8 MAJOR PROCESSES OVERVIEW)</span>
                 </label>
                 <span className="text-[11px] font-semibold text-[#64748B]">
                   {currentCategory.stepNumber}. {currentCategory.name}
