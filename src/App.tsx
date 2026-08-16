@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, ProcessDefinition, ProcessResult, WaferDiameter } from "./types";
+import { AppState, ProcessResult, WaferDiameter } from "./types";
 import { PROCESS_DATASETS } from "./data/processes";
 import { generateAndEvaluateCandidates } from "./utils/model";
-import { generateRandomizedDataset } from "./utils/randomize";
 import { Header } from "./components/Header";
 import { StartScreen } from "./components/StartScreen";
 import { ProcessProgress } from "./components/ProcessProgress";
@@ -21,8 +20,6 @@ export default function App() {
   const [selectedWafer, setSelectedWafer] = useState<WaferDiameter | null>("300mm");
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [isFormulaOpen, setIsFormulaOpen] = useState<boolean>(false);
-  // 최적화 시작 시 생성되는 랜덤화 데이터셋 (null이면 기준 데이터셋 사용)
-  const [runDataset, setRunDataset] = useState<ProcessDefinition[] | null>(null);
 
   // Auto-advance states
   const [isAutoPlay, setIsAutoPlay] = useState<boolean>(true);
@@ -33,8 +30,8 @@ export default function App() {
   // Results for each completed/active step
   const activeProcesses = useMemo(() => {
     if (!selectedWafer) return [];
-    return runDataset ?? PROCESS_DATASETS[selectedWafer];
-  }, [selectedWafer, runDataset]);
+    return PROCESS_DATASETS[selectedWafer];
+  }, [selectedWafer]);
 
   // Precompute evaluated results for all processes
   const evaluatedResults: ProcessResult[] = useMemo(() => {
@@ -72,8 +69,6 @@ export default function App() {
   // Handler: Start optimization
   const handleStartOptimization = () => {
     if (!selectedWafer) return;
-    // 실행마다 오염도·초기 오염·레시피·모델 파라미터를 랜덤화한 새 데이터셋 생성
-    setRunDataset(generateRandomizedDataset(selectedWafer));
     setCurrentStepIndex(0);
     setIsAutoPlay(true);
     setAutoProgress(0);
@@ -118,13 +113,11 @@ export default function App() {
     setAppState("START");
     setCurrentStepIndex(0);
     setAutoProgress(0);
-    setRunDataset(null);
   };
 
   // Handler: Switch wafer diameter and re-run
   const handleSwitchWafer = (diameter: WaferDiameter) => {
     setSelectedWafer(diameter);
-    setRunDataset(generateRandomizedDataset(diameter));
     setCurrentStepIndex(0);
     setIsAutoPlay(true);
     setAutoProgress(0);
