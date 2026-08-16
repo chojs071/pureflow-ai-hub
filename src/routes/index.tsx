@@ -190,7 +190,7 @@ function Index() {
                   max={10}
                   step={1}
                   value={[input.contamination]}
-                  onValueChange={([v]) => setInput((s) => ({ ...s, contamination: v }))}
+                  onValueChange={(v) => setInput((s) => ({ ...s, contamination: v[0] ?? s.contamination }))}
                 />
               </div>
 
@@ -207,7 +207,7 @@ function Index() {
                   max={200}
                   step={5}
                   value={[input.batchesPerDay]}
-                  onValueChange={([v]) => setInput((s) => ({ ...s, batchesPerDay: v }))}
+                  onValueChange={(v) => setInput((s) => ({ ...s, batchesPerDay: v[0] ?? s.batchesPerDay }))}
                 />
               </div>
             </div>
