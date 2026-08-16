@@ -183,16 +183,7 @@ export const CurrentProcessCard: React.FC<CurrentProcessCardProps> = ({ result }
 
       {/* 적용 세정 공정 흐름 — 전체 시퀀스 항상 표시, 현재 분석 단계만 강조 */}
       {process.sequence.length > 0 && (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#071A2E] flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5 text-[#00C2FF]" />
-              적용 세정 공정 흐름
-            </span>
-            <span className="text-[11px] text-[#64748B]">
-              UPW 최적화는 세정·린스 단계에만 적용됩니다
-            </span>
-          </div>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
             {process.sequence.map((seqStep, seqIdx) => {
               const activeIdx = process.sequence.findIndex(
