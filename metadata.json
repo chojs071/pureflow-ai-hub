@@ -1,0 +1,6 @@
+{
+  "name": "PureFlow AI - 초순수 최적화 시스템",
+  "description": "AI 기반 반도체 제조 공정 초순수(UPW) 사용량 최적화 시뮬레이션 및 ESG 대시보드",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

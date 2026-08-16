@@ -1,24 +1,20 @@
-# PureFlow AI Hub
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-https://github.com/chojs071/PureFlow-AI/blob/main/PureFlow_AI_%ED%95%B4%EC%BB%A4%ED%86%A4_%EC%A0%95%EB%A6%AC.md 이거 만들어
+# Run and deploy your AI Studio app
 
-This project was built with [Lovable](https://lovable.dev).
+This contains everything you need to run your app locally.
 
-## Build with Lovable
+View your app in AI Studio: https://ai.studio/apps/29ad006e-2e15-492f-8c26-2eeb10de9ad8
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/f6c22977-3c13-4b63-9164-d23989125a05).
+## Run Locally
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+**Prerequisites:**  Node.js
 
-## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
