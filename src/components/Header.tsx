@@ -101,20 +101,20 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenSettings}
               id="header-settings-btn"
-              className="flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3.5 py-2 text-xs font-bold text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#00C2FF] cursor-pointer"
+              className="flex items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#00C2FF] cursor-pointer"
               title="세정 시뮬레이션 환경 변수 설정"
             >
-              <Settings className="h-4 w-4 text-[#00C2FF]" />
+              <Settings className="h-5 w-5 text-[#00C2FF]" />
               <span className="hidden sm:inline">환경 설정</span>
             </button>
           )}
 
           <button
             onClick={onOpenFormula}
-            className="flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3.5 py-2 text-xs font-bold text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#00C2FF] cursor-pointer"
+            className="flex items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-bold text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#00C2FF] cursor-pointer"
             title="문헌 기반 세정 모델 및 파라미터 확인"
           >
-            <BookOpen className="h-4 w-4 text-[#00C2FF]" />
+            <BookOpen className="h-5 w-5 text-[#00C2FF]" />
             <span className="hidden sm:inline">세정 모델 및 문헌 근거</span>
           </button>
 
