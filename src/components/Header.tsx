@@ -38,15 +38,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
         {/* Brand Logo & Title */}
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#071A2E] text-white shadow-sm ring-1 ring-black/5">
-            <Cpu className="h-5 w-5 text-[#00C2FF]" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#071A2E] text-white shadow-sm ring-1 ring-black/5">
+            <Cpu className="h-6 w-6 text-[#00C2FF]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black tracking-tight text-[#071A2E]">PureFlow AI</span>
+              <span className="text-xl font-black tracking-tight text-[#071A2E]">PureFlow AI</span>
               {wafer && (
                 <>
                   <span className="inline-flex items-center gap-1 rounded-md bg-[#00C2FF]/10 px-2 py-0.5 text-xs font-bold text-[#071A2E] ring-1 ring-[#00C2FF]/30">
@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
             </div>
-            <p className="text-xs text-[#64748B]">반도체 초순수(UPW) 품질 보존 최적화 시스템</p>
+            <p className="text-sm text-[#64748B]">반도체 초순수(UPW) 품질 보존 최적화 시스템</p>
           </div>
         </div>
 
