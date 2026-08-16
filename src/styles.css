@@ -153,3 +153,44 @@
     color: var(--color-foreground);
   }
 }
+
+@theme inline {
+  --font-display: "Space Grotesk", "Pretendard", system-ui, sans-serif;
+  --font-sans: "Pretendard", "Space Grotesk", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility surface {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-panel);
+}
+
+@utility hero-bg {
+  background-image: var(--gradient-hero);
+}
+
+@utility text-flow {
+  background-image: var(--gradient-flow);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-flow {
+  background-image: var(--gradient-flow);
+}
+
+@utility glow {
+  box-shadow: var(--shadow-glow);
+}
